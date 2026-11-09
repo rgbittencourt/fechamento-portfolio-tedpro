@@ -18,7 +18,12 @@ async function buscarBase(id) {
   if (!TOKEN) throw new Error('GITHUB_TOKEN não configurado no servidor.');
   const url = `https://api.github.com/repos/${encodeURIComponent(OWNER)}/${encodeURIComponent(P[id].repo)}/contents/${CAMINHO.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(BRANCH)}`;
   const r = await fetch(url, { headers: { Accept: 'application/vnd.github.raw+json', Authorization: `Bearer ${TOKEN}`, 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'fechamento-portfolio-tedpro' } });
-  if (r.status === 404) throw new Error(`não encontrei ${CAMINHO} em ${P[id].repo} (o repositório existe e o token tem acesso a ele?)`);
+  if (r.status === 404) {
+    // 404 pode ser "arquivo ainda não existe" (P sem avaliações) ou "o token não enxerga o repositório"
+    const repo = await fetch(`https://api.github.com/repos/${encodeURIComponent(OWNER)}/${encodeURIComponent(P[id].repo)}`, { headers: { Authorization: `Bearer ${TOKEN}`, 'User-Agent': 'fechamento-portfolio-tedpro' } });
+    if (repo.ok) return { turmas: [] };
+    throw new Error(`o token não tem acesso ao repositório ${P[id].repo}`);
+  }
   if (!r.ok) throw new Error(`GitHub respondeu ${r.status} para ${P[id].repo}`);
   const texto = await r.text();
   return JSON.parse(texto);
