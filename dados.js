@@ -61,7 +61,7 @@ function nomesParecidos(a, b) {
 
 // ---------- turmas ----------
 const normTurma = (s) => semAcento(s).toLowerCase().replace(/\bturma\b|\btedpro\b|\bp[1-6]\b/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
-const chaveNomeTurma = (s) => normTurma(s).split(' ').filter(Boolean).sort().join(' ');
+const chaveNomeTurma = (s) => normTurma(s).split(' ').filter((x) => x && !/^(19|20)\d\d$/.test(x)).sort().join(' ');
 function listarTurmas(bases) {
   const nomes = new Map();
   for (const id of ORDEM_P) for (const t of bases[id].turmas) {
