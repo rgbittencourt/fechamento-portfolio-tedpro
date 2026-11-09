@@ -86,7 +86,9 @@ function fatosAluno(aluno, contexto) {
     const s = d && desafioBase && id !== base ? sobreposicao(desafioBase, d) : null;
     return { p: id, desafio: d.slice(0, 500), semelhancaComBase: s === null ? null : Math.round(s * 100) };
   });
-  const derivas = fioDesafio.filter((x) => x.semelhancaComBase !== null && x.semelhancaComBase < 30).map((x) => x.p);
+  // < 20%: o desafio provavelmente mudou; 20% a 39%: foi reformulado (mesmo tema, outro recorte); 40% ou mais: mantido
+  const derivas = fioDesafio.filter((x) => x.semelhancaComBase !== null && x.semelhancaComBase < 20).map((x) => x.p);
+  const reformulacoes = fioDesafio.filter((x) => x.semelhancaComBase !== null && x.semelhancaComBase >= 20 && x.semelhancaComBase < 40).map((x) => x.p);
   const publicos = ORDEM_P.filter((id) => aluno.ps[id]?.publico).map((id) => ({ p: id, publico: aluno.ps[id].publico.slice(0, 300) }));
   const publicoBase = publicos[0]?.publico || '';
   const mudancasPublico = publicos.slice(1).filter((x) => { const s = sobreposicao(publicoBase, x.publico); return s !== null && s < 0.25; }).map((x) => x.p);
@@ -115,7 +117,7 @@ function fatosAluno(aluno, contexto) {
     nome: aluno.nome, matricula: aluno.matricula, entregues: aluno.entregues, faltam: aluno.faltam, completo: aluno.completo,
     notas, mediaAluno, mediaTurma: contexto.mediaGeral, comparacao, tendencia, melhor, pior,
     temas, abaixo, persistentes, superados, quedas,
-    fioDesafio, derivas, publicos, mudancasPublico,
+    fioDesafio, derivas, reformulacoes, publicos, mudancasPublico,
     ia, iaSim, iaProblemas, orientadores, linksPorP, cruzamentoLinksP6,
     coerenciaP1: aluno.ps.P1 ? { etiqueta: aluno.ps.P1.textos.coerenciaEtiqueta?.texto || '', motivo: aluno.ps.P1.textos.coerenciaMotivo?.texto || '' } : null,
     alertas, avaliacoesPendentes: pendentes

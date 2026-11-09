@@ -115,8 +115,11 @@ function declaracaoIA(a, id) {
   if (id === 'P6') { const f = txt(a.iaFerramentas); if (f) return /n[ãa]o (utilizei|usei|fiz uso)|nenhuma/i.test(f) ? 'Não' : 'Sim'; }
   return '';
 }
+// Remove o enunciado do modelo que às vezes vem junto na extração ("Se sim, descreva...").
+const ENUNCIADO_IA = /^\s*[:.]?\s*$|se sim,? descreva|quais ferramentas foram utilizadas|para quais finalidades; como ocorreu|adapta[çc][õo]es, revis[õo]es e valida[çc][õo]es foram realizadas|com a ia; quais|de que\s*$|forma o uso da ia contribuiu para o resultado final/i;
 function descricaoIA(a) {
-  return [a.iaDescricao, a.iaFerramentas, a.iaFinalidades, a.iaValidacao, a.iaImpacto].map(txt).filter(Boolean).join('\n');
+  const bruto = [a.iaDescricao, a.iaFerramentas, a.iaFinalidades, a.iaValidacao, a.iaImpacto].map(txt).filter(Boolean).join('\n');
+  return bruto.split('\n').filter((l) => !ENUNCIADO_IA.test(l)).join('\n').trim();
 }
 function orientador(a) { return txt(a.orientadorCorreto || a.orientador || a.orientadorIndicado); }
 

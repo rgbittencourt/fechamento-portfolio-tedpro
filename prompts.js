@@ -62,7 +62,8 @@ Ler TODAS as entregas em conjunto, cruzar o que foi escrito em cada uma com o qu
 REGRAS DE EVIDÊNCIA
 - Baseie TODA afirmação nos dados abaixo. Sempre que afirmar algo, indique as Ps de onde vem ("ps").
 - Os FATOS CALCULADOS são exatos (notas, médias, temas, semelhança entre textos, links): use-os, não os recalcule e não os contradiga.
-- Semelhança baixa entre os desafios de duas Ps é um SINAL de mudança de foco; confirme lendo os textos antes de afirmar que houve deriva.
+- A semelhança entre os desafios é só um SINAL: abaixo de 20% sugere mudança de desafio; entre 20% e 39%, reformulação (mesmo tema, outro recorte de público, local ou foco). Confirme lendo os textos antes de afirmar. Erros de extração do PDF (palavras quebradas, maiúsculas) não contam como mudança.
+- Compare também o público-alvo, o local e o orientador informados em cada P; diferenças entre as Ps são material importante para a banca.
 - Diferencie o que o estudante AFIRMA do que DEMONSTRA com evidências.
 - Se uma informação não existe nos dados, diga que não há registro; não invente.
 - Cite trechos curtos (até 20 palavras) entre aspas quando ajudarem.
