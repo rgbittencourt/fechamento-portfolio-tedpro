@@ -74,11 +74,13 @@ test('dossiê: prompt cruza as Ps e a saída é padronizada', async () => {
   const t = await turma();
   const a = t.alunos.find((x) => x.nome === 'Carla Mendes Oliveira'), f = t.fatos.find((x) => x.nome === a.nome);
   const p = montarPromptDossie(a, f, null);
-  for (const k of ['P1 · Descobrindo', 'P6 · Relato', 'PERGUNTAS PARA A BANCA', 'desafio_mantido', 'FATOS CALCULADOS']) assert.ok(p.includes(k), k);
-  const d = limparDossie({ verificacoes: { desafio_mantido: { resposta: 'Não', ps: ['P1', 'X9'] } }, perguntas_banca: [1, 2, 3, 4, 5, 6].map((i) => ({ pergunta: `Q${i} — teste` })) });
+  for (const k of ['P1 · Descobrindo', 'P6 · Relato', 'EXATAMENTE 6 perguntas', 'escrito_x_entregue', 'continuidade', 'desafio_mantido', 'FATOS CALCULADOS']) assert.ok(p.includes(k), k);
+  const d = limparDossie({ verificacoes: { desafio_mantido: { resposta: 'Não', ps: ['P1', 'X9'] } }, perguntas_banca: [1, 2, 3, 4, 5, 6, 7].map((i) => ({ angulo: i === 1 ? 'evidencias' : 'x', pergunta: `Q${i} — teste` })) });
   assert.equal(d.verificacoes.desafio_mantido.resposta, 'nao');
   assert.deepEqual(d.verificacoes.desafio_mantido.ps, ['P1']);
   assert.equal(d.verificacoes.ia_transparente.resposta, 'sem_dados');
-  assert.equal(d.perguntas_banca.length, 5);
+  assert.equal(d.perguntas_banca.length, 6);
+  assert.equal(d.perguntas_banca[0].angulo, 'evidencias');
+  assert.equal(d.perguntas_banca[1].angulo, '');
   assert.doesNotMatch(d.perguntas_banca[0].pergunta, /—/);
 });

@@ -36,6 +36,8 @@ ${crit}
 ${av.alertas.length ? `Alertas do avaliador: ${av.alertas.slice(0, 6).map((a) => corta(a, 160)).join(' | ')}\n` : ''}${av.feedback ? `Feedback enviado ao estudante: ${corta(av.feedback, 900)}\n` : ''}${av.analiseCoerencia ? `Análise de coerência registrada: ${corta(av.analiseCoerencia, 900)}\n` : ''}`;
 }
 
+const ANGULOS = { fio_do_desafio: 'Fio do desafio', escrito_x_entregue: 'Escrito × entregue', evidencias: 'Evidências', escolhas: 'Escolhas pedagógicas e tecnológicas', aprendizagem: 'Aprendizagem', continuidade: 'Continuidade' };
+
 const VERIFICACOES = [
   ['desafio_mantido', 'O desafio definido na P1 é o mesmo trabalhado até a P6 (ou a mudança foi explicada pelo estudante)?'],
   ['publico_coerente', 'O público-alvo se mantém coerente da P1 à P6?'],
@@ -70,12 +72,21 @@ REGRAS DE EVIDÊNCIA
 - Não use travessão (—) em nenhum texto.
 
 PERGUNTAS PARA A BANCA (o mais importante)
-Elabore de 3 a 5 perguntas que:
-- cruzem pelo menos duas Ps, ou confrontem o que o estudante escreveu com o que entregou, ou explorem uma tensão, contradição, lacuna ou salto não explicado;
-- citem algo específico deste estudante (um público, uma escolha, um resultado, uma frase);
-- não possam ser respondidas com sim ou não, nem com uma definição decorada;
-- sejam justas: também podem pedir que o estudante desenvolva um ponto forte ou projete a continuidade.
-Para cada pergunta, explique por que perguntar e o que uma boa resposta mostraria.
+Elabore EXATAMENTE 6 perguntas, uma de cada ângulo abaixo, na ordem:
+1. "fio_do_desafio": a coerência do percurso, retomando o desafio e o público da P1 diante do que aparece nas Ps seguintes (mudanças, recortes, saltos).
+2. "escrito_x_entregue": uma contradição, lacuna ou afirmação do estudante que não aparece (ou aparece diferente) nas entregas, nas avaliações ou no Padlet.
+3. "evidencias": os resultados e o impacto afirmados (testes da P5, aplicação, falas do público, dados do relato), pedindo que o estudante sustente com evidências.
+4. "escolhas": as escolhas pedagógicas e tecnológicas (formato, tecnologia, agente, estratégia de avaliação), pedindo que justifique por que servem a ESTE público e a ESTE desafio, e o que descartou.
+5. "aprendizagem": a reflexão sobre o próprio percurso, usando uma fragilidade apontada pelos avaliadores, um tema que persistiu ou foi superado, ou o uso declarado de IA.
+6. "continuidade": a projeção do trabalho (próximos passos, ampliação, riscos, sustentabilidade), ancorada no que já foi construído.
+Cada pergunta deve:
+- citar algo específico deste estudante (um público, uma escolha, um resultado, uma frase entre aspas, um número), de modo que não sirva para nenhum outro estudante;
+- cruzar pelo menos duas Ps sempre que os dados permitirem;
+- ser aberta: não pode ser respondida com sim ou não, nem com uma definição decorada;
+- ser justa e respeitosa, podendo também convidar o estudante a desenvolver um ponto forte;
+- ter de uma a três frases, com um breve contexto antes da pergunta propriamente dita.
+Para cada uma, explique por que perguntar (a evidência que a motiva) e o que uma boa resposta mostraria.
+Se faltar dado para um ângulo, use-o para perguntar sobre a ausência (por exemplo, a P que não foi entregue ou o resultado sem evidência).
 Evite perguntas genéricas como "fale sobre seu projeto" ou "o que você aprendeu".
 
 VERIFICAÇÕES OBJETIVAS (responda a todas, sempre as mesmas, com "sim", "parcial", "nao" ou "sem_dados", e uma evidência curta)
@@ -96,7 +107,7 @@ Responda APENAS em JSON válido, neste formato:
 "fragilidades":[{"texto":"","ps":["P3"]}],
 "contradicoes":[{"descricao":"","ps":["P1","P6"]}],
 "evolucao":"um parágrafo sobre a aprendizagem ao longo do curso: o que melhorou, o que persistiu, usando os temas persistentes e superados",
-"perguntas_banca":[{"pergunta":"","por_que":"","ps":["P1","P6"],"o_que_observar":""}],
+"perguntas_banca":[{"angulo":"fio_do_desafio","pergunta":"","por_que":"","ps":["P1","P6"],"o_que_observar":""}],
 "sugestoes_continuidade":[{"sugestao":"","por_que":""}],
 "atencao_banca":["pendências, alertas, lacunas do Padlet ou dados ausentes que a banca deve considerar"],
 "parecer_orientador":"2 a 3 parágrafos ao professor orientador e à banca, com a leitura de conjunto e a recomendação de foco para a arguição"}`;
@@ -155,7 +166,7 @@ function limparDossie(r = {}) {
     fragilidades: lista(r.fragilidades).map((x) => ({ texto: t(x.texto), ps: ps(x.ps) })).filter((x) => x.texto),
     contradicoes: lista(r.contradicoes).map((x) => ({ descricao: t(x.descricao), ps: ps(x.ps) })).filter((x) => x.descricao),
     evolucao: t(r.evolucao),
-    perguntas_banca: lista(r.perguntas_banca).map((x) => ({ pergunta: t(x.pergunta), por_que: t(x.por_que), ps: ps(x.ps), o_que_observar: t(x.o_que_observar) })).filter((x) => x.pergunta).slice(0, 5),
+    perguntas_banca: lista(r.perguntas_banca).map((x) => ({ angulo: ANGULOS[x.angulo] ? x.angulo : '', pergunta: t(x.pergunta), por_que: t(x.por_que), ps: ps(x.ps), o_que_observar: t(x.o_que_observar) })).filter((x) => x.pergunta).slice(0, 6),
     sugestoes_continuidade: lista(r.sugestoes_continuidade).map((x) => ({ sugestao: t(x.sugestao), por_que: t(x.por_que) })).filter((x) => x.sugestao),
     atencao_banca: lista(r.atencao_banca).map(t).filter(Boolean),
     parecer_orientador: t(r.parecer_orientador)
@@ -175,4 +186,4 @@ function limparTurma(r = {}) {
   };
 }
 
-module.exports = { montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, VERIFICACOES, blocoEntrega };
+module.exports = { ANGULOS, montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, VERIFICACOES, blocoEntrega };

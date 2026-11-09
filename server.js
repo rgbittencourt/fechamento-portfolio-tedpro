@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const APP_USERNAME = process.env.APP_USERNAME || 'professor';
 const APP_PASSWORD = process.env.APP_PASSWORD || '';
-const VERSAO_PROMPT = 'v1';
+const VERSAO_PROMPT = 'v2';
 if (process.env.NODE_ENV === 'production' && !APP_PASSWORD) throw new Error('APP_PASSWORD é obrigatória em produção.');
 
 app.use((req, res, next) => {
@@ -131,7 +131,15 @@ app.post('/api/turmas/:chave/padlet-lote', async (req, res) => {
       updates.push({ chave: aluno.chave, url: it.url || '', verificacao: it.conteudo ? padlet.verificar(it.conteudo, aluno, fatos) : null });
       feitos.push(aluno.nome);
     }
-    await db.alterarTurma(req.params.chave, (t) => { for (const u of updates) t.padlet[u.chave] = { url: u.url, verificacao: u.verificacao, em: u.verificacao ? new Date().toISOString() : '' }; });
+    await db.alterarTurma(req.params.chave, (t) => {
+      for (const u of updates) {
+        const antes = t.padlet[u.chave] || {};
+        const url = u.url || antes.url || '';
+        // só a lista de links: mantém a conferência anterior se o link não mudou
+        const manter = !u.verificacao && antes.verificacao && antes.url === url;
+        t.padlet[u.chave] = { url, verificacao: u.verificacao || (manter ? antes.verificacao : null), em: u.verificacao ? new Date().toISOString() : (manter ? antes.em : '') };
+      }
+    });
     res.json({ feitos, naoEncontrados });
   } catch (e) { erro(res, e); }
 });

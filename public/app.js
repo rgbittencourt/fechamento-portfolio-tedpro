@@ -85,7 +85,8 @@
         <div class="kpi"><small>Completaram P1 a P6</small><strong>${completos.length}</strong><em>recebem o dossiê de banca</em></div>
         <div class="kpi"><small>Média geral</small><strong>${fmt(t.turma.mediaGeral)}</strong><em>média das médias dos estudantes</em></div>
         <div class="kpi"><small>Notas subindo / caindo</small><strong>${t.turma.melhoraram} / ${t.turma.pioraram}</strong><em>tendência ao longo das Ps</em></div></div>
-        <div class="barra-ferr no-print"><a class="btn ouro" href="#/turma/${encodeURIComponent(chave)}/relatorio">📊 Relatório da turma</a><button class="btn" id="gerarTodos">✨ Gerar dossiês dos que completaram</button><button class="btn sec" id="atualizarDados">↻ Atualizar dados das Ps</button><a class="btn sec" href="#/">Trocar de turma</a></div>
+        <div class="barra-ferr no-print"><a class="btn ouro" href="#/turma/${encodeURIComponent(chave)}/relatorio">📊 Relatório da turma</a><button class="btn" id="gerarTodos">✨ Gerar dossiês dos que completaram</button><button class="btn sec" id="atualizarDados">↻ Atualizar dados das Ps</button><label class="btn sec" for="listaPadlet" style="margin:0">📎 Importar lista de Padlets (TXT)</label><input type="file" id="listaPadlet" accept=".txt,.csv,text/plain" class="oculto"><a class="btn sec" href="#/">Trocar de turma</a></div>
+        <div class="hint" style="margin-top:6px">Lista de Padlets: um estudante por linha, com o nome e o link (ex.: <code>Ana Paula Souza ; https://padlet.com/...</code>). A ordem e o separador não importam.</div>
         <div id="statusLote" class="status"></div><div class="progresso oculto" id="progLote"><span></span></div>
         <div class="hint" style="margin-top:8px">Ps ligadas: ${PS.map((p) => `${p} ${t.mapa[p] ? '✔' : '✘'}`).join(' · ')}</div></div>
       ${juncoesDuvidosas.length || t.duplicadas.length ? `<div class="card"><h2>Conferência dos nomes</h2>
@@ -94,6 +95,21 @@
       <div class="card"><h2>Completaram as seis Ps (${completos.length})</h2>${completos.length ? `<div style="overflow:auto"><table><thead><tr><th>Estudante</th><th>Notas P1 a P6</th><th>Média</th><th>Fio do desafio</th><th>Padlet</th><th>Dossiê</th><th></th></tr></thead><tbody>${completos.map(linha).join('')}</tbody></table></div>` : '<div class="vazio">Ninguém completou as seis Ps nesta turma ainda.</div>'}</div>
       ${incompletos.length ? `<div class="card"><h2>Ainda não completaram (${incompletos.length})</h2><div class="hint">Também é possível abrir o dossiê, com o que já foi entregue. Se alguém aparece aqui só porque o nome ou a matrícula não bateram, junte com o estudante certo.</div><div style="overflow:auto"><table><thead><tr><th>Estudante</th><th>Notas P1 a P6</th><th>Média</th><th>Fio do desafio</th><th>Padlet</th><th>Dossiê</th><th></th></tr></thead><tbody>${incompletos.map((a) => linha(a).replace('</td></tr>', `<div style="margin-top:6px"><select data-juntar="${esc(a.chave)}" class="no-print" style="font-size:.74rem;padding:4px"><option value="">Juntar com…</option>${t.alunos.filter((b) => b.chave !== a.chave).map((b) => `<option value="${esc(b.chave)}">${esc(b.nome)}</option>`).join('')}</select></div></td></tr>`)).join('')}</tbody></table></div></div>` : ''}`;
     $('#atualizarDados').onclick = () => telaTurma(chave, true);
+    $('#listaPadlet').onchange = async (ev) => {
+      const arq = ev.target.files[0]; if (!arq) return;
+      const itens = (await arq.text()).split(/\r?\n/).map((l) => {
+        const url = (l.match(/https?:\/\/[^\s;,]+/) || [''])[0];
+        const nome = l.replace(url, '').replace(/[;,\t|]+/g, ' ').replace(/\s[-–]\s/g, ' ').replace(/\s+/g, ' ').trim();
+        return { nome, url };
+      }).filter((x) => x.url && x.nome);
+      if (!itens.length) { $('#statusLote').textContent = 'Não encontrei linhas com nome e link do Padlet no arquivo.'; return; }
+      try {
+        const r = await api(`/api/turmas/${encodeURIComponent(chave)}/padlet-lote`, { method: 'POST', body: JSON.stringify({ itens }) });
+        $('#statusLote').textContent = `${r.feitos.length} link(s) de Padlet salvos.${r.naoEncontrados.length ? ` Não encontrei na turma: ${r.naoEncontrados.join(', ')}.` : ''} Agora peça ao Claude: “confere o Padlet da turma ${t.nome}”.`;
+        setTimeout(() => telaTurma(chave), 2500);
+      } catch (e) { $('#statusLote').textContent = e.message; }
+      ev.target.value = '';
+    };
     app.querySelectorAll('[data-desfazer]').forEach((b) => (b.onclick = async () => { const [p, id] = b.dataset.desfazer.split('|'); await api(`/api/turmas/${encodeURIComponent(chave)}/vinculos`, { method: 'POST', body: JSON.stringify({ p, avaliacaoId: id, aluno: `separado-${p}-${id}` }) }); telaTurma(chave); }));
     app.querySelectorAll('[data-juntar]').forEach((s) => (s.onchange = async () => {
       if (!s.value) return; const de = t.alunos.find((a) => a.chave === s.dataset.juntar), para = t.alunos.find((a) => a.chave === s.value);
@@ -119,6 +135,7 @@
   }
 
   // ================= dossiê =================
+  const ANGULOS = { fio_do_desafio: 'Fio do desafio', escrito_x_entregue: 'Escrito × entregue', evidencias: 'Evidências', escolhas: 'Escolhas pedagógicas e tecnológicas', aprendizagem: 'Aprendizagem', continuidade: 'Continuidade' };
   const ROT_RESP = { sim: ['✔ sim', 'ok'], parcial: ['◐ parcial', 'aviso'], nao: ['✘ não', 'ruim'], sem_dados: ['sem dados', 'neutra'] };
   async function telaAluno(chave, alunoChave) {
     app.innerHTML = '<div class="card">Montando o dossiê…</div>';
@@ -142,7 +159,7 @@
           return `<div class="etp ${e?.ligacao || ''}"><b>${p}</b> · ${NOMES_P[p]}<div>${entregue ? esc(e?.o_que_fez || (fd?.desafio ? fd.desafio.slice(0, 120) + (fd.desafio.length > 120 ? '…' : '') : 'Entregue')) : '<i>não entregue</i>'}</div>${fd && fd.semelhancaComBase !== null ? `<div class="sem">Semelhança do desafio com a 1ª entrega: <b>${fd.semelhancaComBase}%</b></div>` : ''}${e?.ligacao ? `<div class="sem">Ligação com o desafio: <b>${e.ligacao}</b></div>` : ''}</div>`; }).join('')}</div>
         ${f.reformulacoes.length ? `<div class="aviso-box" style="margin-top:10px">O desafio aparece <b>reformulado</b> em <b>${f.reformulacoes.join(', ')}</b>: mesmo tema, com outro recorte. Vale conferir se a mudança foi intencional.</div>` : ''}${f.derivas.length ? `<div class="aviso-box" style="margin-top:10px">O desafio registrado em <b>${f.derivas.join(', ')}</b> tem pouca semelhança com o da primeira entrega.${f.mudancasPublico.length ? ` O público-alvo também parece mudar em <b>${f.mudancasPublico.join(', ')}</b>.` : ''}</div>` : f.mudancasPublico.length ? `<div class="aviso-box" style="margin-top:10px">O público-alvo parece mudar em <b>${f.mudancasPublico.join(', ')}</b>.</div>` : ''}</div>
       ${x ? `<div class="card"><h2>Verificações cruzadas</h2><table class="verif"><thead><tr><th>Pergunta</th><th>Resposta</th><th>Evidência</th></tr></thead><tbody>${Object.values(x.verificacoes).map((v) => `<tr><td>${esc(v.pergunta)}</td><td><span class="tag ${ROT_RESP[v.resposta][1]}">${ROT_RESP[v.resposta][0]}</span></td><td>${esc(v.evidencia)}${psTag(v.ps)}</td></tr>`).join('')}</tbody></table></div>
-      <div class="card"><h2>Perguntas para a banca</h2>${x.perguntas_banca.map((q, i) => `<div class="perg"><div class="q">${i + 1}. ${esc(q.pergunta)}</div><div class="det"><b>Por que perguntar:</b> ${esc(q.por_que)}${psTag(q.ps)}</div><div class="det"><b>O que uma boa resposta mostraria:</b> ${esc(q.o_que_observar)}</div></div>`).join('')}</div>
+      <div class="card"><h2>Perguntas para a banca</h2>${x.perguntas_banca.map((q, i) => `<div class="perg">${q.angulo ? `<span class="tag neutra">${esc(ANGULOS[q.angulo] || q.angulo)}</span>` : ''}<div class="q">${i + 1}. ${esc(q.pergunta)}</div><div class="det"><b>Por que perguntar:</b> ${esc(q.por_que)}${psTag(q.ps)}</div><div class="det"><b>O que uma boa resposta mostraria:</b> ${esc(q.o_que_observar)}</div></div>`).join('')}</div>
       <div class="grade2"><div class="card"><h2>Pontos fortes</h2><ul class="lista-ev">${x.pontos_fortes.map((p) => `<li>${esc(p.texto)}${psTag(p.ps)}</li>`).join('')}</ul></div>
       <div class="card"><h2>Fragilidades</h2><ul class="lista-ev">${x.fragilidades.map((p) => `<li>${esc(p.texto)}${psTag(p.ps)}</li>`).join('')}</ul></div></div>
       ${x.contradicoes.length ? `<div class="card"><h2>Contradições e lacunas entre as Ps</h2><ul class="lista-ev">${x.contradicoes.map((p) => `<li>${esc(p.descricao)}${psTag(p.ps)}</li>`).join('')}</ul></div>` : ''}` : ''}
