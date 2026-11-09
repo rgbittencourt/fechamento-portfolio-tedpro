@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fechamento do Portfólio · TEDPRO</title>
+<meta name="description" content="Fechamento do portfólio TEDPRO (P1 a P6): dossiê de banca por estudante e relatório da turma.">
+<meta name="theme-color" content="#14324A">
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/icone.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--azul:#14324A;--azul2:#1B4F72;--azul3:#2E6E97;--claro:#E7EFF5;--ouro:#C9A227;--ouro2:#F3E6B8;--verde:#1E8449;--verm:#B03A2E;--amar:#B7950B;--bg:#F2F5F8;--sup:#fff;--txt:#1c2b36;--mut:#5f6f7a;--borda:#d3dde5;--sombra:0 8px 24px rgba(20,50,74,.08)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{background:linear-gradient(120deg,#0E2436,#14324A 55%,#1B4F72);color:#fff;padding:16px 22px}header .brand{max-width:1280px;margin:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}header img{width:48px;height:48px}header h1{font-size:1.3rem;margin:0}header p{margin:2px 0 0;opacity:.85;font-size:.85rem}header a{color:inherit;text-decoration:none}
+main{max-width:1280px;margin:auto;padding:20px}
+.card{background:var(--sup);border:1px solid var(--borda);border-radius:12px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--sombra)}
+.card h2{margin:0 0 12px;font-size:1.05rem;color:var(--azul2);padding-bottom:8px;border-bottom:2px solid var(--claro);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h3{margin:16px 0 8px;font-size:.95rem;color:var(--azul3)}
+.hint{font-size:.8rem;color:var(--mut)}
+.btn{border:0;border-radius:8px;background:var(--azul2);color:#fff;font-weight:700;padding:9px 14px;cursor:pointer;font-size:.86rem;text-decoration:none;display:inline-block}.btn:hover{filter:brightness(.92)}.btn:disabled{opacity:.55;cursor:wait}
+.btn.sec{background:var(--sup);color:var(--azul2);border:1px solid var(--azul2)}.btn.ouro{background:var(--ouro);color:#1d1a0d}.btn.peq{padding:5px 9px;font-size:.76rem}
+.barra-ferr{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+input[type=text],input[type=url],select,textarea{width:100%;padding:9px 10px;border:1px solid var(--borda);border-radius:8px;font:inherit;font-size:.88rem;background:#fff}
+label{display:block;font-size:.78rem;font-weight:700;color:var(--mut);margin:8px 0 4px}
+.grade6{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.grade2{display:grid;grid-template-columns:1fr 1fr;gap:18px}.grade3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.fontes{display:flex;gap:8px;flex-wrap:wrap}.fonte{border:1px solid var(--borda);border-radius:999px;padding:4px 10px;font-size:.78rem;background:#fff}.fonte.ok{border-color:#9fd1b1;background:#eef8f1}.fonte.erro{border-color:#e7a9a3;background:#fcefee}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpi{border:1px solid var(--borda);border-radius:10px;padding:12px 14px;background:#fff}.kpi small{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:700}.kpi strong{font-size:1.7rem;color:var(--azul2)}.kpi em{display:block;font-style:normal;font-size:.76rem;color:var(--mut)}
+table{border-collapse:collapse;width:100%;font-size:.84rem}th{background:var(--azul2);color:#fff;text-align:left;padding:8px;font-weight:700}td{border-bottom:1px solid var(--borda);padding:8px;vertical-align:top}tbody tr:hover{background:#f7fafc}
+.chips{display:flex;gap:3px}.chip{display:inline-grid;place-items:center;min-width:34px;height:24px;border-radius:6px;font-size:.72rem;font-weight:800;color:#fff}.chip.vazio{background:#e8edf1;color:#97a4ae}
+.tag{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.7rem;font-weight:700;margin:1px}.tag.ok{background:#e1f2e7;color:#1d6b3d}.tag.aviso{background:#fbf0cf;color:#7d6206}.tag.ruim{background:#f8e0dd;color:#8f2f26}.tag.neutra{background:var(--claro);color:var(--azul2)}.tag-inc{font-size:.68rem;color:#8f2f26}
+.vazio{color:var(--mut);font-size:.84rem;padding:6px 0}
+.status{font-size:.82rem;color:var(--mut);margin-top:6px}
+.oculto{display:none!important}
+.barras .barra{display:grid;grid-template-columns:minmax(150px,1.2fr) 2fr 54px;gap:10px;align-items:center;font-size:.8rem;padding:3px 0}.barras .rot{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.barras .trilho{position:relative;height:12px;background:#e6edf2;border-radius:7px}.barras .enche{display:block;height:100%;border-radius:7px}.barras .ref{position:absolute;top:-3px;width:2px;height:18px;background:#14324A}.barras b{text-align:right;color:var(--azul2)}
+.funil{display:flex;align-items:flex-end;gap:14px;height:170px;padding-top:10px}.funil .etapa{flex:1;text-align:center;font-size:.78rem;color:var(--mut)}.funil .col{background:var(--azul3);border-radius:6px 6px 0 0;margin-bottom:5px}.funil b{display:block;color:var(--azul2);font-size:1rem}
+.calor td{text-align:center;font-weight:700;font-size:.8rem}.calor td:first-child{text-align:left;font-weight:600}.legenda-calor{display:flex;gap:12px;flex-wrap:wrap;font-size:.74rem;color:var(--mut);margin-top:8px}.legenda-calor i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:middle}
+/* dossiê */
+.dossie{background:#fff}.capa{background:linear-gradient(120deg,#0E2436,#14324A 60%,#1B4F72);color:#fff;border-radius:12px;padding:24px 28px;margin-bottom:18px;position:relative;overflow:hidden}.capa:after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border:40px solid rgba(201,162,39,.18);border-radius:50%}.capa small{text-transform:uppercase;letter-spacing:.14em;font-size:.7rem;color:#e9d48b;font-weight:800}.capa h2{margin:4px 0;font-size:1.6rem;border:0;color:#fff;padding:0}.capa .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:.84rem;opacity:.92;margin-top:10px}
+.texto{white-space:pre-line}
+.linha-tempo{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.etp{border:1px solid var(--borda);border-radius:10px;padding:10px;font-size:.8rem;background:#fff;border-top:5px solid #c9d5de}.etp.forte{border-top-color:var(--verde)}.etp.parcial{border-top-color:var(--ouro)}.etp.fraca{border-top-color:var(--verm)}.etp b{color:var(--azul2)}.etp .sem{font-size:.7rem;color:var(--mut);margin-top:4px}
+.verif td:nth-child(2){white-space:nowrap}
+.perg{border:1px solid var(--borda);border-left:5px solid var(--ouro);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fffdf6}.perg .q{font-weight:700;color:var(--azul);font-size:.95rem}.perg .det{font-size:.82rem;color:var(--mut);margin-top:6px}
+.lista-ev li{margin:6px 0}.ps{font-size:.7rem;color:var(--azul3);font-weight:700;margin-left:4px}
+.cols2{columns:2;column-gap:24px}
+.aviso-box{border:1px solid #e7c76a;background:#fdf7e3;border-radius:10px;padding:10px 12px;font-size:.84rem}
+.erro-box{border:1px solid #e7a9a3;background:#fcefee;border-radius:10px;padding:10px 12px;font-size:.84rem;color:#8f2f26}
+.progresso{height:8px;background:#e6edf2;border-radius:6px;overflow:hidden;margin-top:8px}.progresso span{display:block;height:100%;background:var(--ouro);width:0}
+.item-ia{border-left:4px solid var(--azul3);padding:6px 12px;margin:8px 0;background:#f8fbfd;border-radius:0 8px 8px 0}.item-ia b{color:var(--azul)}.item-ia .ev{font-size:.78rem;color:var(--mut)}
+.item-ia.bom{border-left-color:var(--verde)}.item-ia.mau{border-left-color:var(--verm)}
+details.det-crit{margin-top:14px}details.det-crit summary{cursor:pointer;color:var(--azul3);padding:6px 0}@media print{details.det-crit>*{display:block}}
+footer{text-align:center;color:var(--mut);font-size:.75rem;padding:10px 0 30px}
+@media(max-width:900px){.grade6,.grade3{grid-template-columns:1fr 1fr}.grade2{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.linha-tempo{grid-template-columns:1fr 1fr}.cols2{columns:1}}
+@media print{header,.no-print,footer{display:none!important}body{background:#fff;font-size:12px}main{padding:0;max-width:none}.card{box-shadow:none;break-inside:avoid;border-color:#ccd}.capa,.chip,.calor td,.enche,.col,.etp{-webkit-print-color-adjust:exact;print-color-adjust:exact}.perg{break-inside:avoid}@page{size:A4;margin:12mm}}
+</style>
+</head>
+<body>
+<header><div class="brand"><a href="#/"><img src="assets/icone.svg" alt=""></a><div><h1><a href="#/">Fechamento do Portfólio · TEDPRO</a></h1><p>Dossiê de banca por estudante e relatório da turma · P1 a P6 · uso exclusivo dos professores</p></div></div></header>
+<main id="app"><div class="card">Carregando…</div></main>
+<footer>Os dados vêm dos repositórios de dados dos Avaliadores P1 a P6. Os dossiês são de uso exclusivo do professor orientador e da banca.</footer>
+<script src="seletor-ia.js"></script>
+<script src="graficos.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

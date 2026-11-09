@@ -1,0 +1,272 @@
+{
+ "P1": [
+  {
+   "k": "identificacao",
+   "label": "Identificação e apresentação no modelo solicitado",
+   "max": 0.5,
+   "tema": "forma"
+  },
+  {
+   "k": "propostas",
+   "label": "Levantamento de propostas de desafios do entorno — item 1",
+   "max": 0.75,
+   "tema": "desafio"
+  },
+  {
+   "k": "aprofundamento",
+   "label": "Aprofundamento das propostas e caracterização do contexto educativo — item 2",
+   "max": 1,
+   "tema": "desafio"
+  },
+  {
+   "k": "publico",
+   "label": "Definição do público-alvo e justificativa de sua pertinência — itens 2 e 4",
+   "max": 1,
+   "tema": "desafio"
+  },
+  {
+   "k": "tecnologias",
+   "label": "Articulação entre tecnologias digitais e educação profissional — itens 2 e 3",
+   "max": 1.25,
+   "tema": "tecnologia"
+  },
+  {
+   "k": "pergunta",
+   "label": "Seleção e formulação da pergunta-desafio — item 3",
+   "max": 1.5,
+   "tema": "desafio"
+  },
+  {
+   "k": "escopo",
+   "label": "Delimitação do escopo e viabilidade do desafio — itens 2, 3 e 4",
+   "max": 1.25,
+   "tema": "desafio"
+  },
+  {
+   "k": "justificativa",
+   "label": "Justificativa da escolha com contextualização e fundamentação — item 4",
+   "max": 1.25,
+   "tema": "fundamentacao"
+  },
+  {
+   "k": "resultados",
+   "label": "Clareza dos resultados e das mudanças esperadas — item 5",
+   "max": 1,
+   "tema": "reflexao"
+  },
+  {
+   "k": "transparencia",
+   "label": "Transparência no uso de inteligência artificial",
+   "max": 0.5,
+   "tema": "ia"
+  }
+ ],
+ "P2": [
+  {
+   "k": "roteiroModelo",
+   "label": "ROTEIRO — utiliza o modelo sugerido",
+   "max": 1,
+   "tema": "forma"
+  },
+  {
+   "k": "roteiroLinguagens",
+   "label": "ROTEIRO — explora, de forma diversificada, as linguagens visual e auditiva",
+   "max": 3,
+   "tema": "producao"
+  },
+  {
+   "k": "roteiroImagens",
+   "label": "ROTEIRO — apresenta imagens, representações, cenas que complementem a informação oral",
+   "max": 3,
+   "tema": "producao"
+  },
+  {
+   "k": "roteiroEstrutura",
+   "label": "ROTEIRO — apresenta uma estrutura com: 1- abertura, 2- desenvolvimento e 3- fechamento",
+   "max": 3,
+   "tema": "producao"
+  },
+  {
+   "k": "videoSegueRoteiro",
+   "label": "VÍDEO — o vídeo segue o roteiro elaborado (Critério 1)",
+   "max": 3,
+   "tema": "producao"
+  },
+  {
+   "k": "videoTempo",
+   "label": "VÍDEO — respeita o limite de 2 minutos (Critério 2)",
+   "max": 2,
+   "tema": "forma"
+  },
+  {
+   "k": "videoDesafio",
+   "label": "VÍDEO — apresenta um desafio claro e relevante (Critério 3)",
+   "max": 3,
+   "tema": "desafio"
+  },
+  {
+   "k": "videoCriatividade",
+   "label": "VÍDEO — comunica o desafio de forma criativa e inovadora (Critério 4)",
+   "max": 3,
+   "tema": "producao"
+  },
+  {
+   "k": "videoContextoPublico",
+   "label": "VÍDEO — apresenta o contexto e o público-alvo do desafio relacionados com as tecnologias para a educação profissional (Critério 5)",
+   "max": 3,
+   "tema": "desafio"
+  },
+  {
+   "k": "videoMotivacao",
+   "label": "VÍDEO — apresenta a motivação para escolha do desafio e justifica por que resolvê-lo é importante (Critério 6)",
+   "max": 3,
+   "tema": "fundamentacao"
+  },
+  {
+   "k": "videoSolucoes",
+   "label": "VÍDEO — sugere possíveis ideias / soluções para o desafio focadas nas tecnologias e na educação profissional (Critério 7)",
+   "max": 3,
+   "tema": "tecnologia"
+  }
+ ],
+ "P3": [
+  {
+   "k": "coerencia",
+   "label": "Coerência da proposta com os objetivos de aprendizagem",
+   "max": 2,
+   "tema": "planejamento"
+  },
+  {
+   "k": "dinamica",
+   "label": "Dinâmica da experiência de aprendizagem: atividades, espaços e papéis dos participantes",
+   "max": 3,
+   "tema": "planejamento"
+  },
+  {
+   "k": "tecnologias",
+   "label": "Integração das tecnologias digitais ao processo de aprendizagem",
+   "max": 2,
+   "tema": "tecnologia"
+  },
+  {
+   "k": "avaliacao",
+   "label": "Adequação da avaliação aos objetivos e à proposta formativa",
+   "max": 2,
+   "tema": "planejamento"
+  },
+  {
+   "k": "ia",
+   "label": "Transparência no uso de Inteligência Artificial",
+   "max": 1,
+   "tema": "ia"
+  }
+ ],
+ "P4": [
+  {
+   "k": "roteiro",
+   "label": "Elaboração do roteiro",
+   "max": 2,
+   "tema": "producao"
+  },
+  {
+   "k": "adequacao",
+   "label": "Adequação do podcast ao desafio e ao público-alvo",
+   "max": 1,
+   "tema": "desafio"
+  },
+  {
+   "k": "producao",
+   "label": "Produção do podcast",
+   "max": 4,
+   "tema": "producao"
+  },
+  {
+   "k": "relato",
+   "label": "Relato da elaboração do podcast",
+   "max": 3,
+   "tema": "reflexao"
+  }
+ ],
+ "P5": [
+  {
+   "k": "modelo",
+   "label": "Uso do modelo obrigatório e formato da entrega",
+   "max": 1,
+   "tema": "forma"
+  },
+  {
+   "k": "demanda",
+   "label": "Retomada do desafio e delimitação da demanda",
+   "max": 1,
+   "tema": "desafio"
+  },
+  {
+   "k": "configuracao",
+   "label": "Registro da configuração, das fontes e do acesso ao Gem",
+   "max": 2,
+   "tema": "tecnologia"
+  },
+  {
+   "k": "testagem",
+   "label": "Testagem em situação realista e evidências da interação",
+   "max": 2,
+   "tema": "reflexao"
+  },
+  {
+   "k": "analise",
+   "label": "Análise crítica dos resultados e refinamento",
+   "max": 2,
+   "tema": "reflexao"
+  },
+  {
+   "k": "contribuicao",
+   "label": "Contribuição do agente para o desafio do portfólio",
+   "max": 1,
+   "tema": "desafio"
+  },
+  {
+   "k": "transparencia",
+   "label": "Transparência sobre o uso de IA na elaboração do relatório",
+   "max": 1,
+   "tema": "ia"
+  }
+ ],
+ "P6": [
+  {
+   "k": "apresentacao",
+   "label": "Apresentação do documento e adequação ao formato solicitado",
+   "max": 3,
+   "tema": "forma"
+  },
+  {
+   "k": "contextualizacao",
+   "label": "Contextualização pessoal, definição do desafio e percurso de pesquisa",
+   "max": 3,
+   "tema": "fundamentacao"
+  },
+  {
+   "k": "recursos",
+   "label": "Reflexão sobre a produção dos recursos e a organização do portfólio — P2 a P6",
+   "max": 3,
+   "tema": "reflexao"
+  },
+  {
+   "k": "competencias",
+   "label": "Preenchimento do quadro e autoavaliação de competências e ferramentas",
+   "max": 3,
+   "tema": "reflexao"
+  },
+  {
+   "k": "resultados",
+   "label": "Análise da aplicação, dos resultados e das perspectivas de continuidade",
+   "max": 3,
+   "tema": "reflexao"
+  },
+  {
+   "k": "transparencia",
+   "label": "Declaração e reflexão sobre o uso de IA generativa na redação do relato",
+   "max": 3,
+   "tema": "ia"
+  }
+ ]
+}

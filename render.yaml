@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: fechamento-portfolio-tedpro
+    repo: https://github.com/rgbittencourt/fechamento-portfolio-tedpro
+    branch: main
+    region: oregon
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: IA_PROVEDOR
+        value: anthropic
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: APP_USERNAME
+        value: professor
+      - key: APP_PASSWORD
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GITHUB_DATA_TOKEN
+        sync: false
+      - key: GITHUB_DATA_OWNER
+        value: rgbittencourt
+      - key: GITHUB_DATA_REPO
+        value: fechamento-portfolio-tedpro-dados
+      - key: GITHUB_DATA_PATH
+        value: dados/fechamento.json
