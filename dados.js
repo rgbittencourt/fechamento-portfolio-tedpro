@@ -73,7 +73,8 @@ function listarTurmas(bases) {
   for (const id of ORDEM_P) for (const t of bases[id].turmas) {
     const chave = chaveNomeTurma(t.nome) || t.id;
     if (!nomes.has(chave)) nomes.set(chave, { chave, nome: t.nome, ps: {} });
-    nomes.get(chave).ps[id] = { id: t.id, nome: t.nome, quantidade: (t.avaliacoes || []).length };
+    const atual = nomes.get(chave).ps[id], qtd = (t.avaliacoes || []).length;
+    if (!atual || qtd > atual.quantidade) nomes.get(chave).ps[id] = { id: t.id, nome: t.nome, quantidade: qtd }; // nomes repetidos: fica a turma com mais avaliações
   }
   return [...nomes.values()].sort((a, b) => Object.keys(b.ps).length - Object.keys(a.ps).length || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
@@ -87,7 +88,8 @@ function sugerirTurmas(bases, pedido) {
       const tt = normTurma(t.nome).split(' ').filter(Boolean);
       const comuns = alvo.filter((x) => tt.some((y) => y === x || (x.length > 4 && (y.startsWith(x) || x.startsWith(y))))).length;
       const s = alvo.length ? comuns / alvo.length : 0;
-      if (s > nota) { nota = s; melhor = t; }
+      const qtd = (t.avaliacoes || []).length;
+      if (s > nota || (s === nota && melhor && s > 0 && qtd > (melhor.avaliacoes || []).length)) { nota = s; melhor = t; } // empate: a turma com mais avaliações
     }
     out[id] = melhor && nota >= 0.5 ? melhor.id : '';
   }

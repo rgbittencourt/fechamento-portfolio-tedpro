@@ -39,7 +39,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, ...statusIA(configIA(
 app.get('/api/fontes', async (req, res) => {
   try {
     const c = await dados.carregarBases(req.query.atualizar === '1');
-    res.json({ atualizadoEm: new Date(c.em).toISOString(), status: Object.fromEntries(ORDEM_P.map((id) => [id, { ...c.status[id], repo: P[id].repo, titulo: P[id].titulo }])), turmas: dados.listarTurmas(c.bases), abertas: await db.listar() });
+    res.json({ atualizadoEm: new Date(c.em).toISOString(), opcoes: dados.opcoesPorP(c.bases), status: Object.fromEntries(ORDEM_P.map((id) => [id, { ...c.status[id], repo: P[id].repo, titulo: P[id].titulo }])), turmas: dados.listarTurmas(c.bases), abertas: await db.listar() });
   } catch (e) { erro(res, e); }
 });
 app.post('/api/turmas/sugerir', async (req, res) => {

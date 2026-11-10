@@ -35,7 +35,8 @@
     app.innerHTML = '<div class="card">Buscando os dados das P1 a P6…</div>';
     const f = await api('/api/fontes');
     const fontes = PS.map((p) => { const s = f.status[p] || {}; return `<span class="fonte ${s.ok ? 'ok' : 'erro'}" title="${esc(s.repo)}${s.erro ? ': ' + esc(s.erro) : ''}"><b>${p}</b> ${s.ok ? `${s.turmas} turma(s) · ${s.avaliacoes} avaliação(ões)${s.atualizadoEm ? ` · GitHub ${dataCurta(s.atualizadoEm)}` : ''}` : 'sem acesso'}</span>`; }).join('');
-    const opcoes = (p) => `<option value="">(não usar)</option>` + f.turmas.filter((t) => t.ps[p]).map((t) => `<option value="${esc(t.ps[p].id)}">${esc(t.ps[p].nome)} (${t.ps[p].quantidade})</option>`).join('');
+    // todas as turmas de cada P (inclusive com nomes repetidos), com a quantidade de avaliações
+    const opcoes = (p) => `<option value="">(não usar)</option>` + (f.opcoes[p] || []).map((t) => `<option value="${esc(t.id)}">${esc(t.nome)} (${t.quantidade})</option>`).join('');
     app.innerHTML = `
       <div class="card"><h2>Abrir o fechamento de uma turma</h2>
         <div class="hint">Digite o nome da turma (por exemplo, <b>Calabresa</b>). O app procura a turma em cada uma das seis Ps; confira e ajuste antes de abrir.</div>
