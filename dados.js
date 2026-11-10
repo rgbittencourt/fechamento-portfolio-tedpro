@@ -35,9 +35,9 @@ async function buscarBase(id) {
   return base;
 }
 
-// Lê as seis bases (com cache de 10 minutos, ou forçando a atualização).
+// Lê as seis bases (com cache de 2 minutos, ou forçando a atualização).
 async function carregarBases(forcar = false) {
-  if (!forcar && cache.bases && Date.now() - cache.em < 10 * 60 * 1000) return cache;
+  if (!forcar && cache.bases && Date.now() - cache.em < 2 * 60 * 1000) return cache;
   const bases = {}, status = {};
   await Promise.all(ORDEM_P.map(async (id) => {
     try {
