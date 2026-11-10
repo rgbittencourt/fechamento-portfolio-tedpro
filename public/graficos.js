@@ -60,15 +60,30 @@
     }).join('')}</tbody></table><div class="legenda-calor">${[['< 6', '#C0504D'], ['6 a 6,9', '#E2B33C'], ['7 a 7,9', '#A8C66C'], ['8 a 8,9', '#58A06C'], ['9 a 10', '#1E8449'], ['não entregou', '#e8edf1']].map(([t, c]) => `<span><i style="background:${c}"></i>${t}</span>`).join('')}</div>`;
   }
 
-  // Funil de entregas por P.
+  const variacao = (de, para) => (de ? Math.round(((para - de) / de) * 100) : null);
+  const selo = (v, sufixo = '%', casas = 0) => {
+    if (v === null || v === undefined || !Number.isFinite(v)) return '<span class="var neutra">—</span>';
+    const txt = (v > 0 ? '+' : '') + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }) + sufixo;
+    return `<span class="var ${v > 0 ? 'sobe' : v < 0 ? 'cai' : 'neutra'}">${v > 0 ? '▲' : v < 0 ? '▼' : '●'} ${txt}</span>`;
+  };
+  // Funil de entregas por P, com a variação de uma P para a seguinte e da primeira à última.
   function funil(funilDados, total) {
-    return `<div class="funil">${funilDados.map((f) => `<div class="etapa"><div class="col" style="height:${Math.max(6, (f.entregas / Math.max(total, 1)) * 120)}px"></div><b>${f.entregas}</b><span>${f.p}</span></div>`).join('')}</div>`;
+    const cols = funilDados.map((f, i) => `<div class="etapa"><div class="col" style="height:${Math.max(6, (f.entregas / Math.max(total, 1)) * 120)}px"></div><b>${f.entregas}</b><span>${f.p}</span>${i ? `<span class="var-linha" title="Variação em relação à ${funilDados[i - 1].p}">${selo(variacao(funilDados[i - 1].entregas, f.entregas))}</span>` : '<span class="var-linha"><span class="var neutra">início</span></span>'}</div>`).join('');
+    const prim = funilDados[0], ult = funilDados[funilDados.length - 1];
+    const ultCom = [...funilDados].reverse().find((f) => f.entregas > 0);
+    let resumo = `<b>${prim.p} → ${ult.p}:</b> ${selo(variacao(prim.entregas, ult.entregas))} (${prim.entregas} → ${ult.entregas} entregas)`;
+    if (ultCom && ultCom.p !== ult.p && ultCom.p !== prim.p) resumo += ` · <b>${prim.p} → ${ultCom.p}</b> (última P com entregas): ${selo(variacao(prim.entregas, ultCom.entregas))} (${prim.entregas} → ${ultCom.entregas})`;
+    return `<div class="funil">${cols}</div><div class="resumo-var">${resumo}</div>`;
   }
 
-  // Médias por P (colunas) com mínimo e máximo.
+  // Médias por P (colunas) com mínimo e máximo, variação entre Ps (em pontos) e média geral de todas as entregas.
   function colunasPorP(estat) {
     const ps = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'];
-    return `<div class="funil">${ps.map((p) => { const e = estat[p] || {}; return `<div class="etapa" title="mín. ${fmt(e.min)} · máx. ${fmt(e.max)} · mediana ${fmt(e.mediana)}"><div class="col" style="height:${Math.max(4, ((e.media || 0) / 10) * 120)}px;background:${corNota(e.media)}"></div><b>${fmt(e.media)}</b><span>${p}</span><span style="display:block;font-size:.7rem">${e.entregas ? `${e.entregas} entrega(s)` : 'sem entregas'}</span></div>`; }).join('')}</div>`;
+    const comEntregas = ps.filter((p) => estat[p] && estat[p].entregas);
+    const somaNotas = comEntregas.reduce((s, p) => s + estat[p].media * estat[p].entregas, 0), nEnt = comEntregas.reduce((s, p) => s + estat[p].entregas, 0);
+    const linhaVar = (p, i) => { if (!i) return '<span class="var-linha"><span class="var neutra">início</span></span>'; const ant = ps.slice(0, i).reverse().find((q) => estat[q] && estat[q].entregas); const e = estat[p]; return `<span class="var-linha" title="Variação da média em relação à ${ant || 'P anterior'}, em pontos">${e && e.entregas && ant ? selo(Math.round((e.media - estat[ant].media) * 10) / 10, ' pt', 1) : selo(null)}</span>`; };
+    const resumo = nEnt ? `<div class="resumo-var"><b>Média geral de todas as entregas:</b> ${fmt(Math.round((somaNotas / nEnt) * 100) / 100)} <span class="hint">(${nEnt} entregas em ${comEntregas.length} Ps; soma de todas as notas ÷ número de entregas)</span></div>` : '';
+    return `<div class="funil">${ps.map((p) => { const e = estat[p] || {}; return `<div class="etapa" title="mín. ${fmt(e.min)} · máx. ${fmt(e.max)} · mediana ${fmt(e.mediana)}"><div class="col" style="height:${Math.max(4, ((e.media || 0) / 10) * 120)}px;background:${corNota(e.media)}"></div><b>${fmt(e.media)}</b><span>${p}</span><span style="display:block;font-size:.7rem">${e.entregas ? `${e.entregas} entrega(s)` : 'sem entregas'}</span>${linhaVar(p, ps.indexOf(p))}</div>`; }).join('')}</div>${resumo}`;
   }
 
   window.Graficos = { linhaNotas, radar, barras, mapaCalor, funil, colunasPorP, corNota, fmt };
