@@ -147,6 +147,11 @@ app.post('/api/turmas/:chave/alunos/:aluno/padlet', async (req, res) => {
     res.json({ url, verificacao, lidas: versoes ? Object.keys(versoes).length : 0, aviso: avisoLeitura });
   } catch (e) { erro(res, e); }
 });
+// Testa a leitura de um Padlet público sem gravar nada (diagnóstico).
+app.post('/api/padlet/testar', async (req, res) => {
+  try { const r = await padlet.lerPublico(String(req.body?.url || '')); res.json({ ok: true, titulo: r.titulo, secoes: r.secoes.map((s) => s.titulo), posts: r.posts.length, comAnexo: r.posts.filter((p) => p.anexo).length, porP: Object.fromEntries(Object.entries(padlet.postsPorP(r) || {}).map(([k, v]) => [k, v.posts.length])) }); }
+  catch (e) { res.json({ ok: false, erro: e.message }); }
+});
 // Importa a conferência de vários Padlets de uma vez: [{aluno|nome, url, conteudo}]
 app.post('/api/turmas/:chave/padlet-lote', async (req, res) => {
   try {
