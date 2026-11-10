@@ -42,12 +42,30 @@ function temasDe(avs) {
 // Perfil da trajetória ao longo das Ps entregues (leitura pedagógica, sempre pela mesma regra).
 function perfilTrajetoria(n, med, tend, desvio, notas) {
   if (n < 2 || med === null) return { chave: 'poucos_dados', rotulo: 'Poucos dados', descricao: 'Menos de duas Ps avaliadas.' };
-  if (med < 6) return { chave: 'baixo', rotulo: 'Desempenho baixo', descricao: 'Média das Ps entregues abaixo de 6: precisa de acompanhamento próximo antes da banca.' };
+  if (med < 6) return { chave: 'baixo', rotulo: 'Desempenho baixo', descricao: 'Média abaixo de 6 nas Ps já cursadas pela turma: precisa de acompanhamento próximo antes da banca.' };
   if (tend !== null && tend >= 0.3) return { chave: 'ascensao', rotulo: 'Em ascensão', descricao: 'Notas melhorando ao longo das Ps: sinal de aprendizagem e de uso dos feedbacks.' };
   if (tend !== null && tend <= -0.3) return { chave: 'queda', rotulo: 'Em queda', descricao: 'Notas caindo ao longo das Ps: vale investigar sobrecarga, perda de foco no desafio ou dificuldade com os formatos finais.' };
   if (desvio !== null && desvio >= 1.5) return { chave: 'irregular', rotulo: 'Irregular', descricao: 'Oscila bastante entre as Ps: domina alguns formatos e tem dificuldade em outros.' };
-  if (med >= 8.5) return { chave: 'consistente_alto', rotulo: 'Consistente e alto', descricao: 'Mantém bom desempenho em todas as Ps entregues.' };
+  if (med >= 8.5) return { chave: 'consistente_alto', rotulo: 'Consistente e alto', descricao: 'Mantém bom desempenho em todas as Ps já cursadas pela turma.' };
   return { chave: 'estavel', rotulo: 'Estável', descricao: 'Desempenho regular, sem grandes variações.' };
+}
+
+// Perfil considerando TODAS as Ps que a turma já cursou: P não entregue conta zero.
+function perfilTodasPs(notas, ativas) {
+  const ps = ativas.length ? ativas : ORDEM_P;
+  const vals = ps.map((id) => (notas[id] === null || notas[id] === undefined ? 0 : notas[id]));
+  const faltam = ps.filter((id) => notas[id] === null || notas[id] === undefined);
+  const med = media(vals);
+  let tend = null;
+  if (vals.length >= 3) {
+    const xs = ps.map((id) => ORDEM_P.indexOf(id) + 1), mx = media(xs), my = med;
+    const num = xs.reduce((s, x, i) => s + (x - mx) * (vals[i] - my), 0), den = xs.reduce((s, x) => s + (x - mx) ** 2, 0);
+    tend = den ? num / den : 0;
+  }
+  const desvio = vals.length >= 2 ? Math.sqrt(media(vals.map((v) => (v - med) ** 2))) : null;
+  const p = perfilTrajetoria(vals.length, med, tend, desvio);
+  const nota = faltam.length ? ` Não entregou ${faltam.join(', ')}, que contam como zero.` : '';
+  return { ...p, descricao: p.descricao + nota, faltam, mediaConsiderada: r2(med), psConsideradas: ps };
 }
 
 // ---------- aluno ----------
@@ -131,7 +149,7 @@ function fatosAluno(aluno, contexto) {
   const pendentes = avs.filter((a) => !a.completa).map((a) => a.p);
   return {
     nome: aluno.nome, matricula: aluno.matricula, entregues: aluno.entregues, faltam: aluno.faltam, completo: aluno.completo,
-    notas, mediaAluno, mediaEntregues, desvio, perfil: perfilTrajetoria(pres.length, mediaEntregues, tendencia, desvio, notas), mediaTurma: contexto.mediaGeral, comparacao, tendencia, melhor, pior,
+    notas, mediaAluno, mediaEntregues, desvio, perfil: perfilTodasPs(notas, contexto.psAtivas || ORDEM_P), mediaTurma: contexto.mediaGeral, comparacao, tendencia, melhor, pior,
     temas, abaixo, persistentes, superados, quedas,
     fioDesafio, derivas, reformulacoes, publicos, mudancasPublico,
     ia, iaSim, iaProblemas, orientadores, linksPorP, cruzamentoLinksP6,
@@ -160,7 +178,9 @@ function contextoTurma(alunos) {
   // média geral: média das médias oficiais dos estudantes (cada uma dividida pelas 6 Ps)
   const mediaGeral = r2(media(alunos.map((a) => ORDEM_P.reduce((s, id) => s + (Number.isFinite(a.ps[id]?.total) ? a.ps[id].total : 0), 0) / ORDEM_P.length)));
   const mediaGeralEntregues = r2(media(alunos.map((a) => media(ORDEM_P.map((id) => a.ps[id]?.total).filter(Number.isFinite)))));
-  return { mediaPorP, estatPorP, temasTurma, mediaGeral, mediaGeralEntregues };
+  // Ps que a turma já cursou (com ao menos uma entrega): entram no perfil de todos, com zero para quem não entregou
+  const psAtivas = ORDEM_P.filter((id) => estatPorP[id].entregas > 0);
+  return { mediaPorP, estatPorP, temasTurma, mediaGeral, mediaGeralEntregues, psAtivas };
 }
 
 function fatosTurma(alunos, contexto, fatosPorAluno) {

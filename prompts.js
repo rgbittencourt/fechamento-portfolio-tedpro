@@ -132,7 +132,7 @@ COMO OS DADOS FORAM CALCULADOS
 - Temas: cada critério das rubricas foi agrupado num tema (desafio e público; fundamentação; planejamento pedagógico; tecnologias digitais; produção e linguagem midiática; teste, análise e reflexão; forma da entrega; transparência no uso de IA). O percentual é a soma dos pontos obtidos sobre o máximo possível, juntando todas as Ps.
 - Tema persistente: abaixo de 75% em duas ou mais Ps do mesmo estudante. Tema superado: abaixo de 75% em P1 a P3 e acima de 85% em todas de P4 a P6.
 - Correlação (r de Pearson) entre as notas de duas Ps: perto de 1, quem vai bem numa vai bem na outra; perto de 0, sem relação; negativa, relação inversa.
-- Perfis de trajetória: baixo (média das entregues < 6), em ascensão ou em queda (tendência das notas), irregular (desvio alto), consistente e alto, estável.
+- Perfis de trajetória: calculados com TODAS as Ps que a turma já cursou, com zero na P não entregue: baixo (média < 6), em ascensão ou em queda (tendência das notas), irregular (desvio alto), consistente e alto (média de 8,5 ou mais), estável.
 
 REGRAS
 - Use os FATOS DA TURMA como base exata (médias, funil de entregas, critérios mais frágeis e mais fortes, correlações, temas). Não recalcule nem contradiga.
