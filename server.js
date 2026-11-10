@@ -149,7 +149,6 @@ app.post('/api/turmas/:chave/alunos/:aluno/padlet', async (req, res) => {
 });
 // Testa a leitura de um Padlet público sem gravar nada (diagnóstico).
 app.post('/api/padlet/testar', async (req, res) => {
-  if (req.body?.hashid) { try { const r = await fetch(`https://padlet.com/api/10/wishes?wall_hashid=${encodeURIComponent(req.body.hashid)}&page_start=`, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', Accept: 'application/json' } }); const t = await r.text(); return res.json({ ok: r.ok, status: r.status, inicio: t.slice(0, 160), servidor: r.headers.get('server'), cf: r.headers.get('cf-mitigated') }); } catch (e) { return res.json({ ok: false, erro: e.message }); } }
   try { const r = await padlet.lerPublico(String(req.body?.url || '')); res.json({ ok: true, titulo: r.titulo, secoes: r.secoes.map((s) => s.titulo), posts: r.posts.length, comAnexo: r.posts.filter((p) => p.anexo).length, porP: Object.fromEntries(Object.entries(padlet.postsPorP(r) || {}).map(([k, v]) => [k, v.posts.length])) }); }
   catch (e) { res.json({ ok: false, erro: e.message }); }
 });
