@@ -44,16 +44,16 @@ const VERIFICACOES = [
   ['produtos_dialogam', 'Os produtos P2 a P5 dialogam entre si e com o desafio (um aproveita ou aprofunda o outro), em vez de serem entregas isoladas?'],
   ['relato_fiel', 'O relato (P6) descreve com fidelidade o que foi de fato entregue nas P2 a P5, sem afirmar o que não aparece nas entregas?'],
   ['resultados_com_evidencia', 'Os resultados afirmados (na P5 e na P6) têm evidências concretas nas entregas, como testes, dados de aplicação ou falas do público?'],
-  ['feedback_incorporado', 'As fragilidades apontadas pelos avaliadores nas primeiras Ps aparecem superadas ou retomadas nas seguintes?'],
+  ['feedback_incorporado', 'As indicações do orientador foram atendidas nas versões publicadas no Padlet (ou, na etapa preliminar, as fragilidades das primeiras Ps aparecem superadas nas seguintes)?'],
   ['ia_transparente', 'A declaração de uso de IA é consistente e transparente ao longo das Ps?'],
   ['promessa_p1_cumprida', 'O que o estudante disse na P1 que pretendia alcançar foi alcançado, ou ao menos discutido criticamente, na P6?']
 ];
 
-function montarPromptDossie(aluno, fatos, padlet) {
+function montarPromptDossie(aluno, fatos, padlet, correcoes = null, versoes = null) {
   const avs = ORDEM_P.map((id) => aluno.ps[id]).filter(Boolean);
   const limite = Math.floor(60000 / Math.max(avs.length, 1));
   const entregas = avs.map((av) => blocoEntrega(av, limite)).join('\n');
-  const { linksPorP, ...fatosSemLinks } = fatos;
+  const { linksPorP, feedbacks, ...fatosSemLinks } = fatos;
   return `Você é um avaliador experiente da Especialização TEDPRO (Tecnologias para Educação Profissional e Tecnológica, IFSC) e prepara o DOSSIÊ DE BANCA de um estudante para o professor orientador e os professores da banca. O estudante construiu, ao longo do curso, um portfólio em seis entregas no Padlet:
 P1 Descobrindo meu desafio (pergunta-desafio "Como podemos..."), P2 Apresentando meu desafio (roteiro e vídeo), P3 Proposta formativa, P4 Podcast, P5 Agente de IA (Gem), P6 Relato de experiência.
 Todas as Ps devem girar em torno do MESMO desafio e do MESMO público-alvo. A banca quer saber se houve um percurso coerente e uma aprendizagem real, e não apenas seis tarefas cumpridas.
@@ -95,7 +95,15 @@ ${VERIFICACOES.map(([k, q]) => `- ${k}: ${q}`).join('\n')}
 FATOS CALCULADOS PELO APLICATIVO
 ${JSON.stringify(fatosSemLinks)}
 Links registrados por P: ${JSON.stringify(linksPorP)}
-${padlet ? `CONFERÊNCIA DO PADLET DO ESTUDANTE\n${JSON.stringify(padlet)}\n` : 'CONFERÊNCIA DO PADLET: ainda não realizada.\n'}
+${padlet ? `CONFERÊNCIA DO PADLET DO ESTUDANTE\n${JSON.stringify(padlet)}\n` : 'CONFERÊNCIA DO PADLET: ainda não realizada.\n'}${correcoes ? `
+ETAPA FINAL: as versões publicadas no Padlet são os PRODUTOS FINAIS do estudante (as entregas do Moodle não podem ser alteradas; as correções aparecem só no Padlet). Baseie a leitura de conjunto, as fragilidades, as perguntas e o parecer nas versões do Padlet, usando as avaliações do Moodle como histórico. A verificação "feedback_incorporado" deve refletir a VERIFICAÇÃO DAS CORREÇÕES abaixo, e pelo menos uma pergunta para a banca deve tratar de uma indicação não corrigida ou só parcialmente corrigida, se houver.
+VERIFICAÇÃO DAS CORREÇÕES (indicações do orientador × versão no Padlet)
+${JSON.stringify({ taxa: correcoes.taxa, conta: correcoes.conta, porP: Object.fromEntries(Object.entries(correcoes.porP).map(([k, v]) => [k, { taxa: v.taxa, itens: v.itens.map((i) => `${i.status}: ${i.indicacao}${i.evidencia ? ` (${i.evidencia})` : ''}`).slice(0, 10) }])) })}
+VERSÕES FINAIS NO PADLET (trechos)
+${Object.entries(versoes || {}).map(([k, v]) => `--- ${k} ---\n${corta(v.texto, 3500) || '(sem texto legível)'}`).join('\n')}
+` : `
+ETAPA PRELIMINAR: as versões corrigidas ainda não foram lidas do Padlet. Trate este dossiê como preliminar e não afirme se as indicações foram atendidas.
+`}
 ENTREGAS DO ESTUDANTE
 ${entregas}
 
@@ -122,6 +130,7 @@ Produza uma leitura de conjunto para os professores da banca e para a coordenaç
 REGRAS
 - Use os FATOS DA TURMA como base exata (médias, funil de entregas, critérios mais frágeis e mais fortes, correlações, temas). Não recalcule nem contradiga.
 - Cada insight deve trazer a evidência que o sustenta (números, Ps, quantos estudantes).
+- Se houver dados de correções (indicações do orientador atendidas nas versões do Padlet), analise quais Ps e que tipos de indicação a turma mais corrigiu e menos corrigiu.
 - Procure relações: onde os estudantes param, que tema fraco na P1 continua fraco no fim, se quem vai bem numa P vai bem em outra (correlações), se os desafios mudaram de foco, como a turma declarou o uso de IA.
 - Uma correlação calculada com poucos estudantes é só um indício; diga isso quando n for pequeno.
 - Fale de estudantes pelo nome só em "alunos_atencao" e "destaques".
@@ -186,4 +195,64 @@ function limparTurma(r = {}) {
   };
 }
 
-module.exports = { ANGULOS, montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, VERIFICACOES, blocoEntrega };
+// ---------- verificação das correções (indicações do orientador × versão publicada no Padlet) ----------
+const STATUS_CORRECAO = ['corrigido', 'parcial', 'nao_corrigido', 'nova_versao', 'nao_verificavel'];
+function indicacoesDaP(av) {
+  const itens = av.criterios.filter((c) => c.pontos !== null && c.pontos < c.max)
+    .map((c) => `- Critério "${c.label}" (${c.pontos}/${c.max})${c.observacao ? `: ${corta(c.observacao, 400)}` : ''}`);
+  return `${itens.join('\n') || '- Nenhum critério abaixo do máximo.'}
+${av.feedback ? `Feedback enviado ao estudante: ${corta(av.feedback, 1500)}\n` : ''}${av.feedbackCoerencia ? `Feedback de coerência: ${corta(av.feedbackCoerencia, 900)}\n` : ''}${av.alertas.length ? `Alertas do avaliador: ${av.alertas.slice(0, 6).map((a) => corta(a, 160)).join(' | ')}\n` : ''}`;
+}
+function montarPromptCorrecoes(aluno, versoes, sinais = {}) {
+  const blocos = ORDEM_P.filter((id) => aluno.ps[id]).map((id) => {
+    const av = aluno.ps[id], v = versoes[id];
+    const fontes = v ? v.fontes.map((f) => `${f.nome} (${f.tipo}${f.lido ? ', texto lido' : ', não lido'})`).join('; ') : '';
+    const links = v ? v.links.map((l) => l.url).join(' ') : '';
+    return `===== ${id} · ${P[id].titulo} (nota no Moodle ${av.total ?? 'sem nota'}/10) =====
+INDICAÇÕES DO ORIENTADOR NA AVALIAÇÃO
+${indicacoesDaP(av)}
+${sinais[id] ? `COMPARAÇÃO DA MÍDIA (avaliada × Padlet): ${JSON.stringify(sinais[id])}\n` : ''}VERSÃO PUBLICADA NO PADLET
+${v ? `Arquivos: ${fontes || 'nenhum'}${links ? `\nLinks: ${links}` : ''}\nTexto disponível:\n${v.texto ? corta(v.texto, 9000) : '(nenhum texto legível)'}` : '(esta P não foi encontrada no Padlet)'}`;
+  }).join('\n\n');
+  return `Você confere, para o professor orientador da Especialização TEDPRO (IFSC), se o estudante ${aluno.nome} atendeu às indicações de melhoria feitas nas avaliações das Ps. As entregas no Moodle não podem ser alteradas: o estudante deve corrigir seus produtos e publicar a versão final no Padlet. Compare, P por P, as indicações do orientador com a versão publicada no Padlet.
+
+REGRAS
+- Para cada P, transforme as indicações (critérios abaixo do máximo, observações, feedback, coerência, alertas) em itens objetivos de melhoria, sem repetir o mesmo ponto. Ignore elogios e itens já no máximo.
+- Para cada item, procure a evidência na versão do Padlet e classifique:
+  "corrigido": a versão do Padlet mostra claramente a correção (cite o trecho);
+  "parcial": houve mudança, mas incompleta;
+  "nao_corrigido": o texto disponível mostra que o problema continua;
+  "nova_versao": vídeo ou áudio (P2, P4) que a COMPARAÇÃO DA MÍDIA mostra ser outra versão (link ou arquivo diferente, publicado depois da avaliação), mas cujo conteúdo não pode ser lido; o orientador deve assistir ou ouvir;
+  "nao_verificavel": não há texto legível nem sinal de nova versão para conferir (link externo, PDF escaneado) ou a P não está no Padlet.
+- Vídeo e áudio: se a COMPARAÇÃO DA MÍDIA indicar o mesmo link avaliado e nenhuma postagem posterior, classifique como "nao_corrigido" com a evidência "mesma versão avaliada"; se indicar nova versão, use "nova_versao" e cite o link ou arquivo e a data. Indicações sobre o roteiro escrito ou o relato continuam sendo conferidas pelo texto.
+- Não presuma correção sem evidência no texto. Não confunda o texto da avaliação com o texto do estudante.
+- Evidências: trechos curtos (até 25 palavras) entre aspas, ou a ausência constatada.
+- Registre também melhorias relevantes feitas sem terem sido pedidas, se houver.
+- Não use travessão (—).
+
+${blocos}
+
+Responda APENAS em JSON válido:
+{"porP":{"P1":{"itens":[{"indicacao":"","origem":"critério, feedback, coerência ou alerta","status":"corrigido","evidencia":""}],"melhorias_extras":[""],"resumo":"uma frase"}},"sintese":"um parágrafo sobre como o estudante respondeu às indicações ao longo do portfólio"}`;
+}
+function limparCorrecoes(r = {}) {
+  const t = (v) => semTravessao(String(v || '').trim());
+  const porP = {};
+  for (const id of ORDEM_P) {
+    const x = (r.porP || {})[id]; if (!x) continue;
+    const itens = (Array.isArray(x.itens) ? x.itens : []).map((i) => {
+      const st = String(i.status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_');
+      return { indicacao: t(i.indicacao), origem: t(i.origem), status: STATUS_CORRECAO.includes(st) ? st : 'nao_verificavel', evidencia: t(i.evidencia) };
+    }).filter((i) => i.indicacao);
+    const conta = Object.fromEntries(STATUS_CORRECAO.map((s) => [s, itens.filter((i) => i.status === s).length]));
+    const verificaveis = itens.length - conta.nao_verificavel - conta.nova_versao;
+    porP[id] = { itens, melhorias_extras: (Array.isArray(x.melhorias_extras) ? x.melhorias_extras : []).map(t).filter(Boolean), resumo: t(x.resumo), conta,
+      taxa: verificaveis ? Math.round(((conta.corrigido + conta.parcial * 0.5) / verificaveis) * 100) : null };
+  }
+  const todos = Object.values(porP).flatMap((x) => x.itens);
+  const conta = Object.fromEntries(STATUS_CORRECAO.map((s) => [s, todos.filter((i) => i.status === s).length]));
+  const verif = todos.length - conta.nao_verificavel - conta.nova_versao;
+  return { porP, sintese: t(r.sintese), conta, taxa: verif ? Math.round(((conta.corrigido + conta.parcial * 0.5) / verif) * 100) : null };
+}
+
+module.exports = { montarPromptCorrecoes, limparCorrecoes, STATUS_CORRECAO, ANGULOS, montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, VERIFICACOES, blocoEntrega };

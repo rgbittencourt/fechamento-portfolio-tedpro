@@ -84,3 +84,28 @@ test('dossiê: prompt cruza as Ps e a saída é padronizada', async () => {
   assert.equal(d.perguntas_banca[1].angulo, '');
   assert.doesNotMatch(d.perguntas_banca[0].pergunta, /—/);
 });
+
+test('correções: versões do Padlet por P, PDF lido, sinais de vídeo e taxa de atendimento', async () => {
+  const { postsPorP, lerVersoes, sinaisMidia } = require('../padlet');
+  const { limparCorrecoes, montarPromptCorrecoes } = require('../prompts');
+  const bruto = { padlet: { padlet_content: { padlet_title: 'T', sections: [{ section_id: '3', section_title: 'P1' }, { section_id: '4', section_title: 'Portfólio 2' }], posts: [
+    { section_id: '3', subject: 'P1 corrigida', body: '<p>Nova versão</p>', attachment: 'http://x/p1.pdf', published_at: '2026-11-05T00:00:00Z' },
+    { section_id: '4', subject: 'Vídeo', body: '<p>https://youtu.be/novo</p>', attachment: '', published_at: '2026-11-06T00:00:00Z' }] } } };
+  const porP = postsPorP(bruto);
+  assert.deepEqual(Object.keys(porP), ['P1', 'P2']);
+  const falso = async () => ({ ok: false, status: 404 });
+  const v = await lerVersoes(porP, { baixar: falso });
+  assert.equal(v.P1.fontes[0].lido, false);
+  assert.match(v.P1.texto, /Nova versão/);
+  const s = sinaisMidia({ textos: { linkVideo: { texto: 'https://youtu.be/antigo' } }, atualizadoEm: '2026-10-01T00:00:00Z' }, v.P2, 'linkVideo');
+  assert.equal(s.publicadoDepois, true);
+  assert.match(s.conclusao, /nova versão/);
+  const c = limparCorrecoes({ porP: { P1: { itens: [{ indicacao: 'a', status: 'corrigido' }, { indicacao: 'b', status: 'Não corrigido' }, { indicacao: 'c', status: 'parcial' }, { indicacao: 'd', status: 'nova versão' }] } }, sintese: 'x — y' });
+  assert.deepEqual(c.porP.P1.conta, { corrigido: 1, parcial: 1, nao_corrigido: 1, nova_versao: 1, nao_verificavel: 0 });
+  assert.equal(c.porP.P1.taxa, 50);
+  assert.doesNotMatch(c.sintese, /—/);
+  const t = await turma();
+  const carla = t.alunos.find((x) => x.nome === 'Carla Mendes Oliveira');
+  const pr = montarPromptCorrecoes(carla, v, { P2: s });
+  assert.match(pr, /INDICAÇÕES DO ORIENTADOR/); assert.match(pr, /COMPARAÇÃO DA MÍDIA/); assert.match(pr, /nova_versao/);
+});

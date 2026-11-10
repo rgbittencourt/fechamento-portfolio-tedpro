@@ -32,7 +32,7 @@ function padronizar(bruto) {
     return {
       titulo: bruto.padlet_title || '', descricao: bruto.padlet_description || '',
       secoes: (bruto.sections || []).map((s) => ({ id: String(s.section_id), titulo: s.section_title || '' })),
-      posts: (bruto.posts || []).map((p) => ({ secao: String(p.section_id || ''), titulo: p.subject || '', texto: semHtml(p.body), anexo: p.attachment || '', publicadoEm: p.published_at || '' }))
+      posts: (bruto.posts || []).map((p) => ({ secao: String(p.section_id || ''), titulo: p.subject || '', texto: semHtml(p.body), anexo: p.attachment || '', publicadoEm: p.published_at || '', atualizadoEm: p.updated_at || '' }))
     };
   }
   if (bruto.data && bruto.data.attributes) { // API pública (JSON:API)
@@ -95,4 +95,85 @@ function verificar(bruto, aluno, fatos) {
   };
 }
 
-module.exports = { verificar, padronizar, lerPelaApi, pDoTitulo, apiConfigurada: () => Boolean(API_KEY) };
+// ---------- versões publicadas (o que o aluno corrigiu depois das avaliações) ----------
+// Agrupa os posts do Padlet por P: textos dos posts, anexos e links.
+function postsPorP(bruto) {
+  const pad = padronizar(bruto);
+  if (!pad) return null;
+  const secaoP = Object.fromEntries(pad.secoes.map((s) => [s.id, pDoTitulo(s.titulo)]));
+  const out = {};
+  for (const post of pad.posts) {
+    const id = pDoTitulo(post.titulo) || secaoP[post.secao] || pDoTitulo(String(post.anexo || '').split('/').pop());
+    if (!id) continue;
+    out[id] = out[id] || { posts: [] };
+    out[id].posts.push({ titulo: post.titulo || '', texto: post.texto || '', anexo: post.anexo || '', links: urls(post.texto), publicadoEm: post.publicadoEm || '', atualizadoEm: post.atualizadoEm || '' });
+  }
+  return out;
+}
+
+const LINK_MIDIA = /youtu\.?be|vimeo|spotify|soundcloud|anchor\.fm|canva\.com|gemini\.google|chatgpt\.com|drive\.google|docs\.google|genial\.ly|padlet\.com|instagram|tiktok/i;
+const nomeArquivo = (u) => decodeURIComponent(String(u).split('?')[0].split('/').pop() || 'arquivo');
+
+// Baixa os PDFs anexados e extrai o texto. Vídeos, áudios, imagens e links ficam registrados como "não lidos".
+async function lerVersoes(porP, { limite = 25000, baixar = fetch } = {}) {
+  let pdfParse = null;
+  try { pdfParse = require('pdf-parse/lib/pdf-parse.js'); } catch {}
+  const versoes = {};
+  for (const [id, x] of Object.entries(porP || {})) {
+    const partes = [], fontes = [], links = [];
+    for (const post of x.posts) {
+      const corpo = [post.titulo, post.texto].filter(Boolean).join(' · ').trim();
+      if (corpo) partes.push(`[texto do post] ${corpo}`);
+      for (const l of post.links) links.push({ url: l, tipo: LINK_MIDIA.test(l) ? 'link de mídia ou documento externo' : 'link', publicadoEm: post.atualizadoEm || post.publicadoEm || '' });
+      if (!post.anexo) continue;
+      const nome = nomeArquivo(post.anexo);
+      if (/\.pdf$/i.test(nome) && pdfParse) {
+        try {
+          const ctrl = new AbortController(); const tempo = setTimeout(() => ctrl.abort(), 25000);
+          const r = await baixar(post.anexo, { signal: ctrl.signal }); clearTimeout(tempo);
+          if (!r.ok) throw new Error(`download respondeu ${r.status}`);
+          const buf = Buffer.from(await r.arrayBuffer());
+          if (buf.length > 20 * 1024 * 1024) throw new Error('arquivo maior que 20 MB');
+          const d = await pdfParse(buf);
+          const texto = String(d.text || '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+          if (texto.length < 80) { fontes.push({ nome, tipo: 'PDF sem texto (provavelmente escaneado)', lido: false }); continue; }
+          partes.push(`[PDF ${nome}] ${texto}`);
+          fontes.push({ nome, tipo: 'PDF', lido: true, paginas: d.numpages, caracteres: texto.length, publicadoEm: post.atualizadoEm || post.publicadoEm || '' });
+        } catch (e) { fontes.push({ nome, tipo: 'PDF', lido: false, erro: e.name === 'AbortError' ? 'tempo esgotado' : e.message }); }
+      } else {
+        const tipo = /\.(mp4|mov|webm|avi)$/i.test(nome) ? 'vídeo' : /\.(mp3|m4a|wav|ogg)$/i.test(nome) ? 'áudio' : /\.(png|jpe?g|gif|webp)$/i.test(nome) ? 'imagem' : /\.(docx?|pptx?|odt)$/i.test(nome) ? 'documento do Office (não lido)' : 'arquivo';
+        const f = { nome, tipo, lido: false, publicadoEm: post.atualizadoEm || post.publicadoEm || '' };
+        if (tipo === 'vídeo' || tipo === 'áudio') { // tamanho e data do arquivo: sinais de que é outra versão
+          try { const r = await baixar(post.anexo, { method: 'HEAD' }); if (r.ok) { f.bytes = Number(r.headers.get('content-length')) || null; f.modificadoEm = r.headers.get('last-modified') || ''; } } catch {}
+        }
+        fontes.push(f);
+      }
+    }
+    let texto = partes.join('\n\n');
+    if (texto.length > limite) texto = texto.slice(0, limite) + ' […]';
+    versoes[id] = { texto, fontes, links, temTextoLido: fontes.some((f) => f.lido) || partes.some((p) => p.length > 200) };
+  }
+  return versoes;
+}
+
+// Vídeo (P2) e podcast (P4): compara o que foi avaliado com o que está no Padlet (link, data, tamanho).
+const chaveLink = (u) => { try { const x = new URL(u); const v = x.searchParams.get('v'); return (x.hostname.replace(/^www\.|^m\./, '') + x.pathname + (v ? `?v=${v}` : '')).replace(/\/+$/, '').toLowerCase().replace('youtu.be/', 'youtube.com/watch?v='); } catch { return String(u).toLowerCase(); } };
+function sinaisMidia(av, versao, campoLink) {
+  if (!av || !versao) return null;
+  const linkAvaliado = (av.textos[campoLink]?.texto || '').match(/https?:\/\/\S+/)?.[0] || '';
+  const dataAvaliacao = av.atualizadoEm || '';
+  const midias = versao.links.filter((l) => /youtu|vimeo|spotify|soundcloud|anchor|drive\.google|podcast|canva/i.test(l.url));
+  const arquivos = versao.fontes.filter((f) => f.tipo === 'vídeo' || f.tipo === 'áudio');
+  const mesmoLink = linkAvaliado && midias.some((l) => chaveLink(l.url) === chaveLink(linkAvaliado));
+  const depois = (d) => d && dataAvaliacao && new Date(d) > new Date(dataAvaliacao);
+  const novoLink = midias.some((l) => !linkAvaliado || chaveLink(l.url) !== chaveLink(linkAvaliado));
+  const publicadoDepois = [...midias.map((l) => l.publicadoEm), ...arquivos.map((f) => f.modificadoEm || f.publicadoEm)].some(depois);
+  let conclusao = 'sem mídia no Padlet para comparar';
+  if (midias.length || arquivos.length) {
+    if (mesmoLink && !novoLink && !arquivos.length) conclusao = publicadoDepois ? 'mesmo link avaliado, postado de novo depois da avaliação: o conteúdo pode ou não ter mudado' : 'mesmo link avaliado: provavelmente a mesma versão';
+    else if (novoLink || arquivos.length) conclusao = publicadoDepois ? 'nova versão publicada depois da avaliação (link ou arquivo diferente)' : 'link ou arquivo diferente do avaliado, sem data posterior à avaliação';
+  }
+  return { linkAvaliado, dataAvaliacao, duracaoAvaliada: av.textos.videoDuracao?.texto || av.textos.duracao?.texto || '', noPadlet: [...midias.map((l) => ({ link: l.url, publicadoEm: l.publicadoEm })), ...arquivos.map((f) => ({ arquivo: f.nome, bytes: f.bytes || null, publicadoEm: f.modificadoEm || f.publicadoEm }))], mesmoLink: Boolean(mesmoLink), publicadoDepois: Boolean(publicadoDepois), conclusao };
+}
+
+module.exports = { sinaisMidia, verificar, padronizar, lerPelaApi, pDoTitulo, postsPorP, lerVersoes, apiConfigurada: () => Boolean(API_KEY) };

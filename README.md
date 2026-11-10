@@ -16,6 +16,13 @@ Fechamento do portfólio da Especialização TEDPRO (IFSC): reúne as avaliaçõ
 5. **Relatório da turma:** entregas por P e onde os estudantes param, média por P, mapa de calor estudantes × Ps, desempenho por tema, temas persistentes e superados, critérios mais frágeis e mais fortes, correlações entre as Ps, deriva de desafios, uso de IA, alertas frequentes e, com IA, panorama, tendências, maiores acertos, maiores problemas, relações entre as Ps, estudantes que pedem atenção, destaques e recomendações.
 6. **Padlet:** os links podem ser importados de uma vez por um arquivo TXT (um estudante por linha, com nome e link, em qualquer ordem e separador) ou salvos no dossiê de cada estudante. A conferência mostra quais Ps estão postadas, se os links batem com os avaliados e se o desafio do Padlet é o mesmo da P1. Sem assinatura do Padlet, a leitura é feita pelo Claude (conector do Padlet) e enviada ao app em `POST /api/turmas/:turma/padlet-lote`.
 
+### Duas etapas: preliminar e final
+
+As entregas no Moodle não podem ser alteradas: o estudante corrige seus produtos e publica a versão final no Padlet.
+
+- **Dossiê preliminar:** gerado só com as avaliações das Ps.
+- **Dossiê final:** depois que os Padlets são lidos, o app baixa os PDFs publicados em cada P, extrai o texto e confere, P por P, cada indicação do orientador (critérios abaixo do máximo, observações, feedback, coerência, alertas): **corrigido**, **parcial**, **não corrigido**, **nova versão** (vídeo ou áudio diferente do avaliado, a assistir/ouvir) ou **não verificável**. No vídeo (P2) e no podcast (P4), compara link, data de publicação e tamanho do arquivo com o que foi avaliado. O dossiê passa a usar as versões do Padlet como produtos finais, e o relatório da turma mostra o percentual de correções atendidas por P.
+
 Os dossiês e o relatório ficam salvos: com os mesmos dados, o app mostra o mesmo texto; quando uma avaliação muda, ele avisa que os dados mudaram.
 
 ## Dados lidos

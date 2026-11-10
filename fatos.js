@@ -112,6 +112,8 @@ function fatosAluno(aluno, contexto) {
   }
 
   const alertas = avs.flatMap((a) => a.alertas.map((t) => ({ p: a.p, alerta: t.slice(0, 220) })));
+  // feedback geral enviado em cada P (em algumas Ps os comentários ficam só aqui, sem observação por critério)
+  const feedbacks = avs.filter((a) => a.feedback || a.feedbackCoerencia).map((a) => ({ p: a.p, feedback: a.feedback.slice(0, 2500), coerencia: a.feedbackCoerencia.slice(0, 1500) }));
   const pendentes = avs.filter((a) => !a.completa).map((a) => a.p);
   return {
     nome: aluno.nome, matricula: aluno.matricula, entregues: aluno.entregues, faltam: aluno.faltam, completo: aluno.completo,
@@ -120,7 +122,7 @@ function fatosAluno(aluno, contexto) {
     fioDesafio, derivas, reformulacoes, publicos, mudancasPublico,
     ia, iaSim, iaProblemas, orientadores, linksPorP, cruzamentoLinksP6,
     coerenciaP1: aluno.ps.P1 ? { etiqueta: aluno.ps.P1.textos.coerenciaEtiqueta?.texto || '', motivo: aluno.ps.P1.textos.coerenciaMotivo?.texto || '' } : null,
-    alertas, avaliacoesPendentes: pendentes
+    alertas, feedbacks, avaliacoesPendentes: pendentes
   };
 }
 
