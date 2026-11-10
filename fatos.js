@@ -1,3 +1,4 @@
+const { GUIA_PERFIS } = require('./perfis');
 // Fatos calculados (sem IA): sempre os mesmos para os mesmos dados.
 // São a base objetiva do dossiê e do relatório da turma; a IA interpreta a partir deles.
 const { ORDEM_P, TEMAS, P } = require('./fontes');
@@ -65,7 +66,7 @@ function perfilTodasPs(notas, ativas) {
   const desvio = vals.length >= 2 ? Math.sqrt(media(vals.map((v) => (v - med) ** 2))) : null;
   const p = perfilTrajetoria(vals.length, med, tend, desvio);
   const nota = faltam.length ? ` Não entregou ${faltam.join(', ')}, que contam como zero.` : '';
-  return { ...p, descricao: p.descricao + nota, faltam, mediaConsiderada: r2(med), psConsideradas: ps };
+  return { ...p, descricao: p.descricao + nota, guia: GUIA_PERFIS[p.chave] || null, faltam, mediaConsiderada: r2(med), psConsideradas: ps };
 }
 
 // ---------- aluno ----------

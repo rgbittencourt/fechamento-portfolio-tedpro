@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const APP_USERNAME = process.env.APP_USERNAME || 'professor';
 const APP_PASSWORD = process.env.APP_PASSWORD || '';
-const VERSAO_PROMPT = 'v4';
+const VERSAO_PROMPT = 'v5';
 if (process.env.NODE_ENV === 'production' && !APP_PASSWORD) throw new Error('APP_PASSWORD é obrigatória em produção.');
 
 app.use((req, res, next) => {

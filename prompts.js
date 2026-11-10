@@ -89,6 +89,15 @@ Para cada uma, explique por que perguntar (a evidência que a motiva) e o que um
 Se faltar dado para um ângulo, use-o para perguntar sobre a ausência (por exemplo, a P que não foi entregue ou o resultado sem evidência).
 Evite perguntas genéricas como "fale sobre seu projeto" ou "o que você aprendeu".
 
+AS PERGUNTAS NASCEM DO PRÓPRIO DOSSIÊ
+Elabore as perguntas por ÚLTIMO, depois de escrever o fio do desafio, as verificações, os pontos fortes, as fragilidades, as contradições e a evolução, e A PARTIR deles. A banca deve perceber que cada pergunta decorre do que o dossiê mostrou. Use, nesta ordem de prioridade:
+- PERFIL DE TRAJETÓRIA (fatos.perfil): siga a orientação "guia.fazer" do perfil deste estudante. Por exemplo: consistente e alto pede perguntas de aprofundamento (justificar escolhas, limites, continuidade); em queda pede investigar o que mudou e as Ps não entregues; irregular pede relacionar as Ps fortes com as fracas; em ascensão pede o que aprendeu com os primeiros feedbacks; desempenho baixo pede retomar desafio e público e as pendências.
+- Verificações respondidas com "nao" ou "parcial": cada uma é candidata natural a pergunta.
+- Contradições e fragilidades que você listou, temas persistentes, quedas de nota, deriva ou reformulação do desafio, mudança de público, alertas e, na etapa final, indicações não corrigidas no Padlet.
+- Pontos fortes e temas superados: use pelo menos um para convidar o estudante a desenvolver o que fez bem.
+Cada pergunta não pode contradizer o que o dossiê afirma (por exemplo, não pergunte sobre uma lacuna que as verificações dizem estar resolvida).
+No campo "base", diga em uma frase curta de qual elemento do dossiê a pergunta decorre (por exemplo: "Perfil consistente e alto: aprofundar escolhas"; "Verificação evidencias_resultados = parcial"; "Contradição P1 × P4 sobre o público"; "Tema persistente: teste, análise e reflexão").
+
 VERIFICAÇÕES OBJETIVAS (responda a todas, sempre as mesmas, com "sim", "parcial", "nao" ou "sem_dados", e uma evidência curta)
 ${VERIFICACOES.map(([k, q]) => `- ${k}: ${q}`).join('\n')}
 
@@ -115,7 +124,7 @@ Responda APENAS em JSON válido, neste formato:
 "fragilidades":[{"texto":"","ps":["P3"]}],
 "contradicoes":[{"descricao":"","ps":["P1","P6"]}],
 "evolucao":"um parágrafo sobre a aprendizagem ao longo do curso: o que melhorou, o que persistiu, usando os temas persistentes e superados",
-"perguntas_banca":[{"angulo":"fio_do_desafio","pergunta":"","por_que":"","ps":["P1","P6"],"o_que_observar":""}],
+"perguntas_banca":[{"angulo":"fio_do_desafio","pergunta":"","por_que":"","ps":["P1","P6"],"o_que_observar":"","base":""}],
 "sugestoes_continuidade":[{"sugestao":"","por_que":""}],
 "atencao_banca":["pendências, alertas, lacunas do Padlet ou dados ausentes que a banca deve considerar"],
 "parecer_orientador":"2 a 3 parágrafos ao professor orientador e à banca, com a leitura de conjunto e a recomendação de foco para a arguição"}`;
@@ -185,7 +194,7 @@ function limparDossie(r = {}) {
     fragilidades: lista(r.fragilidades).map((x) => ({ texto: t(x.texto), ps: ps(x.ps) })).filter((x) => x.texto),
     contradicoes: lista(r.contradicoes).map((x) => ({ descricao: t(x.descricao), ps: ps(x.ps) })).filter((x) => x.descricao),
     evolucao: t(r.evolucao),
-    perguntas_banca: lista(r.perguntas_banca).map((x) => ({ angulo: ANGULOS[x.angulo] ? x.angulo : '', pergunta: t(x.pergunta), por_que: t(x.por_que), ps: ps(x.ps), o_que_observar: t(x.o_que_observar) })).filter((x) => x.pergunta).slice(0, 6),
+    perguntas_banca: lista(r.perguntas_banca).map((x) => ({ angulo: ANGULOS[x.angulo] ? x.angulo : '', pergunta: t(x.pergunta), por_que: t(x.por_que), ps: ps(x.ps), o_que_observar: t(x.o_que_observar), base: t(x.base) })).filter((x) => x.pergunta).slice(0, 6),
     sugestoes_continuidade: lista(r.sugestoes_continuidade).map((x) => ({ sugestao: t(x.sugestao), por_que: t(x.por_que) })).filter((x) => x.sugestao),
     atencao_banca: lista(r.atencao_banca).map(t).filter(Boolean),
     parecer_orientador: t(r.parecer_orientador)
