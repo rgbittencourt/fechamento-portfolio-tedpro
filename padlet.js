@@ -63,13 +63,26 @@ const CABECALHOS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Ap
 async function lerPublico(url, { buscar = fetch } = {}) {
   const u = String(url || '').trim().split('#')[0];
   if (!/^https?:\/\/([a-z0-9-]+\.)?padlet\.com\//i.test(u)) throw new Error('O link não é de um Padlet.');
-  const pagina = await buscar(u, { headers: { ...CABECALHOS, Accept: 'text/html' }, redirect: 'follow' });
-  if (!pagina.ok) throw new Error(`O Padlet respondeu ${pagina.status} ao abrir a página.`);
-  const html = await pagina.text();
-  const hashid = (html.match(/board_([A-Za-z0-9]{8,})/) || [])[1];
-  if (!hashid) throw new Error('Não encontrei o mural nesta página: o Padlet pode ser privado ou pedir senha.');
-  const titulo = semHtml((html.match(/<title>([^<]*)<\/title>/i) || [])[1] || '');
-  const descricao = semHtml((html.match(/property="og:description" content="([^"]*)"/i) || [])[1] || '');
+  // A página do mural costuma ser bloqueada para servidores; a página de incorporação (feita para
+  // outros sites) e o oEmbed não são. Tenta nessa ordem e usa a página do mural só como último recurso.
+  const fim = u.split('?')[0].replace(/\/+$/, '').split('/').pop().split('-').pop();
+  let hashid = '', titulo = '', descricao = '', ultimoStatus = 0;
+  for (const endereco of [`https://padlet.com/embed/${fim}`, u]) {
+    try {
+      const r = await buscar(endereco, { headers: { ...CABECALHOS, Accept: 'text/html' }, redirect: 'follow' });
+      ultimoStatus = r.status; if (!r.ok) continue;
+      const html = await r.text();
+      hashid = (html.match(/board_([A-Za-z0-9]{8,})/) || [])[1] || '';
+      titulo = titulo || semHtml((html.match(/<title>([^<]*)<\/title>/i) || [])[1] || '');
+      descricao = descricao || semHtml((html.match(/property="og:description" content="([^"]*)"/i) || [])[1] || '');
+      if (hashid) break;
+    } catch { /* tenta o próximo */ }
+  }
+  try {
+    const o = await buscar(`https://padlet.com/oembed?url=${encodeURIComponent(u)}&format=json`, { headers: CABECALHOS });
+    if (o.ok) { const j = await o.json(); titulo = j.title || titulo; descricao = j.description || descricao; }
+  } catch { /* o título é opcional */ }
+  if (!hashid) throw new Error(ultimoStatus && ultimoStatus !== 200 ? `O Padlet respondeu ${ultimoStatus} ao abrir o mural.` : 'Não encontrei o mural: o Padlet pode ser privado ou pedir senha.');
   const base = 'https://padlet.com/api';
   const posts = []; let inicio = ''; const vistos = new Set();
   for (let i = 0; i < 20; i++) {

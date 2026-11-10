@@ -9,6 +9,8 @@ test('lê Padlet público pelos endereços da página', async () => {
       { attributes: { id: 2, wall_id: 9, wall_section_id: 6, subject: '', body: 'rascunho', published: false } }
     ], meta: { next: null } }));
     if (u.includes('/5/wall_sections')) return resp(JSON.stringify({ data: [{ id: '5', attributes: { id: 5, title: 'P1' } }, { id: '6', attributes: { id: 6, title: 'P2' } }] }));
+    if (u.includes('/oembed')) return resp(JSON.stringify({ title: 'Meu portfólio', description: 'TEDPRO' }));
+    if (u.includes('/embed/')) return resp('<html>… "board_AbCdEfGh12345678" …</html>');
     return resp('<html><title>Meu portfólio</title><meta property="og:description" content="TEDPRO">… "board_AbCdEfGh12345678" …</html>');
   };
   const r = await padlet.lerPublico('https://padlet.com/fulano/portfolio-abc123', { buscar });
