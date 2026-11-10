@@ -89,6 +89,18 @@
   }
 
   // ================= turma =================
+  // Situação da conferência do Padlet: o que já está pronto e o que falta.
+  function cardPadlet(t) {
+    const n = t.alunos.length, cont = (fn) => t.alunos.filter(fn).length;
+    const comLink = cont((a) => a.padlet?.url), conf = cont((a) => a.padlet?.conferido), lidas = cont((a) => a.padletLido), corr = cont((a) => a.correcoes), finais = cont((a) => a.dossie?.etapa === 'final');
+    const etapas = [['Links dos Padlets salvos', comLink, 'Importe o TXT (baixe o modelo com os nomes já preenchidos e só cole os links).'], ['Padlets conferidos', conf, `Peça ao Claude: “confere o Padlet da turma ${t.nome}”. Ele lê cada Padlet e envia para cá.`], ['Versões finais lidas (PDFs, vídeos, áudios)', lidas, 'Acontece junto com a conferência.'], ['Correções verificadas', corr, 'Acontece ao gerar o dossiê depois da conferência.'], ['Dossiês na versão final', finais, 'Use “Gerar dossiês dos que completaram” depois da conferência.']];
+    const semLink = t.alunos.filter((a) => !a.padlet?.url).map((a) => a.nome);
+    return `<div class="card"><h2>Conferência do Padlet ${comLink === n && finais === n ? '<span class="tag ok">concluída</span>' : '<span class="tag neutra">em preparação</span>'}</h2>
+      <div class="hint">As correções dos estudantes aparecem só no Padlet. Depois da conferência, cada dossiê passa a usar as versões do Padlet como produtos finais e confere, indicação por indicação, o que foi corrigido.</div>
+      <table style="margin-top:8px"><tbody>${etapas.map(([r, v, dica]) => `<tr><td><b>${r}</b></td><td style="width:140px"><div class="barra-prog"><span style="width:${n ? Math.round((v / n) * 100) : 0}%"></span></div></td><td style="width:70px;text-align:right"><b>${v}</b> de ${n}</td><td class="hint">${v < n ? dica : '✔'}</td></tr>`).join('')}</tbody></table>
+      ${semLink.length && semLink.length < n ? `<div class="hint" style="margin-top:6px"><b>Sem link:</b> ${semLink.map(esc).join(', ')}</div>` : ''}
+      <div class="barra-ferr no-print"><button class="btn sec peq" id="modeloPadlet">⬇ Baixar modelo da lista (nomes já preenchidos)</button></div></div>`;
+  }
   async function telaTurma(chave, atualizar = false) {
     app.innerHTML = '<div class="card">Cruzando as P1 a P6 da turma…</div>';
     const t = await api(`/api/turmas/${encodeURIComponent(chave)}${atualizar ? '?atualizar=1' : ''}`);
@@ -116,6 +128,7 @@
         <details style="margin-top:10px" ${PS.some((p) => !t.mapa[p]) ? '' : ''}><summary class="hint" style="cursor:pointer"><b>Ps ligadas:</b> ${PS.map((p) => `${p} ${t.mapa[p] ? '✔' : '✘'}`).join(' · ')} · <u>editar</u></summary>
           <div class="grade6" style="margin-top:8px">${PS.map((p) => { const s = t.status[p] || {}; return `<div><label for="mapa_${p}">${p} · ${NOMES_P[p]}</label><select id="mapa_${p}"><option value="">(não usar)</option>${(t.opcoes[p] || []).map((o) => `<option value="${esc(o.id)}" ${t.mapa[p] === o.id ? 'selected' : ''}>${esc(o.nome)} (${o.quantidade})</option>`).join('')}</select><div class="hint">${s.ok ? (s.atualizadoEm ? `Última cópia no GitHub: ${dataCurta(s.atualizadoEm)}` : 'Sem cópia no GitHub ainda') : 'Sem acesso ao repositório'}</div></div>`; }).join('')}</div>
           <div class="barra-ferr"><button class="btn sec peq" id="salvarMapa">Salvar Ps ligadas</button><button class="btn sec peq" id="excluirFech" style="color:#8f2f26;border-color:#8f2f26">🗑 Excluir este fechamento</button></div></details></div>
+      ${cardPadlet(t)}
       ${juncoesDuvidosas.length || t.duplicadas.length ? `<div class="card"><h2>Conferência dos nomes</h2>
         ${juncoesDuvidosas.map((x) => `<div class="aviso-box" style="margin-bottom:6px">Na ${x.p}, "<b>${esc(x.j.nomeNaP)}</b>"${x.j.matriculaNaP ? ` (matrícula ${esc(x.j.matriculaNaP)})` : ' (sem matrícula)'} foi ligado a <b>${esc(x.aluno.nome)}</b> pelo nome parecido. <button class="btn peq sec" data-desfazer="${x.p}|${esc(x.j.avaliacaoId)}">Não é a mesma pessoa</button></div>`).join('')}
         ${t.duplicadas.map((d) => `<div class="hint">Na ${d.p}, ${esc(d.aluno)} tinha duas avaliações; ficou a mais recente.</div>`).join('')}</div>` : ''}
@@ -126,6 +139,11 @@
     $('#salvarMapa').onclick = () => salvarMapa(Object.fromEntries(PS.map((p) => [p, $(`#mapa_${p}`).value])));
     if ($('#ligarNovas')) $('#ligarNovas').onclick = () => salvarMapa({ ...t.mapa, ...t.sugestoesNovas });
     $('#excluirFech').onclick = () => excluirFechamento(chave, t.nome);
+    $('#modeloPadlet').onclick = () => {
+      const txt = ['# Lista de Padlets · ' + t.nome, '# Cole o link do Padlet depois do ponto e vírgula de cada estudante e importe este arquivo.', ...t.alunos.map((a) => `${a.nome} ; ${a.padlet?.url || ''}`)].join('\n');
+      const url = URL.createObjectURL(new Blob([txt], { type: 'text/plain;charset=utf-8' }));
+      const l = document.createElement('a'); l.href = url; l.download = `padlets-${chave}.txt`; l.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
     $('#listaPadlet').onchange = async (ev) => {
       const arq = ev.target.files[0]; if (!arq) return;
       const itens = (await arq.text()).split(/\r?\n/).map((l) => {
@@ -190,7 +208,7 @@
     const f = d.fatos, x = d.dossie, a = d.aluno;
     const temasRadar = {}; for (const [k, v] of Object.entries(f.temas)) temasRadar[k] = { pct: v.pct, turma: v.turma };
     const pad = d.padlet?.verificacao;
-    const gerar = `<div class="barra-ferr no-print"><button class="btn ouro" id="gerar">${x ? '↻ Gerar novamente' : '✨ Gerar dossiê com IA'}</button><button class="btn sec" onclick="window.print()">🖨 Imprimir / salvar em PDF</button><a class="btn sec" href="#/turma/${encodeURIComponent(chave)}">← Voltar à turma</a></div><div id="statusGerar" class="status">${x ? `Gerado em ${new Date(x.geradoEm).toLocaleString('pt-BR')} · ${esc(x.modelo)}${x.desatualizado ? ' · <b>os dados mudaram desde então: gere novamente</b>' : ' · mesmos dados, mesmo dossiê'}` : (d.padlet?.versoesResumo ? 'As versões do Padlet já foram lidas: o dossiê será gerado na versão final, conferindo as correções.' : 'Os fatos e gráficos abaixo já estão calculados. Sem os Padlets lidos, o dossiê sai na versão preliminar.')}</div>`;
+    const gerar = `<div class="barra-ferr no-print"><button class="btn ouro" id="gerar">${x ? '↻ Gerar novamente' : '✨ Gerar dossiê com IA'}</button><button class="btn sec" onclick="window.print()">🖨 Imprimir / salvar em PDF</button>${x ? `<a class="btn" href="#/turma/${encodeURIComponent(chave)}/aluno/${encodeURIComponent(alunoChave)}/banca">🎤 Roteiro da arguição</a><a class="btn sec" href="#devolutiva" onclick="document.getElementById('devolutiva').scrollIntoView({behavior:'smooth'});return false">✉ Devolutiva ao estudante</a>` : ''}<a class="btn sec" href="#/turma/${encodeURIComponent(chave)}">← Voltar à turma</a></div><div id="statusGerar" class="status">${x ? `Gerado em ${new Date(x.geradoEm).toLocaleString('pt-BR')} · ${esc(x.modelo)}${x.desatualizado ? ' · <b>os dados mudaram desde então: gere novamente</b>' : ' · mesmos dados, mesmo dossiê'}` : (d.padlet?.versoesResumo ? 'As versões do Padlet já foram lidas: o dossiê será gerado na versão final, conferindo as correções.' : 'Os fatos e gráficos abaixo já estão calculados. Sem os Padlets lidos, o dossiê sai na versão preliminar.')}</div>`;
     app.innerHTML = `<div class="dossie">
       <div class="capa"><small>Dossiê de banca · uso exclusivo dos professores${x ? ` · ${x.etapa === 'final' ? 'versão final, com os Padlets' : 'versão preliminar, antes dos Padlets'}` : ''}</small><h2>${esc(a.nome)}</h2>
         <div>${esc(f.fioDesafio[0]?.desafio || 'Desafio não registrado')}</div>
@@ -229,16 +247,113 @@
       ${x ? `<div class="grade2"><div class="card"><h2>Sugestões para seguir adiante</h2><ul class="lista-ev">${x.sugestoes_continuidade.map((s) => `<li><b>${esc(s.sugestao)}</b><div class="hint">${esc(s.por_que)}</div></li>`).join('')}</ul></div>
       <div class="card"><h2>Pontos de atenção para a banca</h2>${x.atencao_banca.length ? `<ul class="lista-ev">${x.atencao_banca.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : '<div class="vazio">Nenhum.</div>'}${f.alertas.length ? `<h3>Alertas registrados nas avaliações</h3><ul class="lista-ev">${f.alertas.map((al) => `<li><b>${al.p}</b> ${esc(al.alerta)}</li>`).join('')}</ul>` : ''}</div></div>
       <div class="card"><h2>Parecer ao professor orientador e à banca</h2><div class="texto">${esc(x.parecer_orientador)}</div></div>` : ''}
+      ${x ? blocoDevolutiva(d) : ''}
     </div>`;
     $('#gerar').onclick = async () => {
       const b = $('#gerar'); b.disabled = true; $('#statusGerar').textContent = d.padlet?.versoesResumo ? 'Conferindo as correções no Padlet e cruzando as entregas… isso leva de 2 a 3 minutos.' : 'Lendo as entregas e cruzando… isso leva cerca de 1 minuto.';
       try { await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(alunoChave)}/dossie`, { method: 'POST', body: JSON.stringify({ forcar: Boolean(x) && !x.desatualizado ? confirm('Os dados não mudaram. Gerar mesmo assim? O texto pode variar um pouco.') : true }) }); telaAluno(chave, alunoChave); }
       catch (e) { $('#statusGerar').textContent = `Não foi possível gerar: ${e.message}`; b.disabled = false; }
     };
+    if ($('#gerarDev')) $('#gerarDev').onclick = async () => {
+      const b = $('#gerarDev'); b.disabled = true; $('#statusDev').textContent = 'Escrevendo a devolutiva a partir do dossiê… cerca de 30 segundos.';
+      try { await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(alunoChave)}/devolutiva`, { method: 'POST', body: '{}' }); await telaAluno(chave, alunoChave); document.getElementById('devolutiva')?.scrollIntoView(); }
+      catch (e) { $('#statusDev').textContent = `Não foi possível gerar: ${e.message}`; b.disabled = false; }
+    };
+    if ($('#copiarDev')) $('#copiarDev').onclick = async () => { try { await navigator.clipboard.writeText(textoDevolutiva(a, d.devolutiva)); $('#statusDev').textContent = 'Texto copiado: é só colar no e-mail ou na mensagem do Moodle.'; } catch { $('#statusDev').textContent = 'Não consegui copiar automaticamente: selecione o texto e copie.'; } };
+    if ($('#imprimirDev')) $('#imprimirDev').onclick = () => imprimirSecao(`Devolutiva · ${a.nome}`, $('#corpoDev').innerHTML);
     $('#salvarPadlet').onclick = async () => {
       try { const r = await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(alunoChave)}/padlet`, { method: 'POST', body: JSON.stringify({ url: $('#padletUrl').value.trim() }) }); if (r.verificacao) telaAluno(chave, alunoChave); else $('#statusPadlet').textContent = r.aviso || 'Link salvo.'; }
       catch (e) { $('#statusPadlet').textContent = e.message; }
     };
+  }
+
+  // ================= devolutiva ao estudante =================
+  function corpoDevolutiva(nome, v) {
+    return `<p>${esc(v.abertura)}</p>
+      <h3>Seu percurso</h3><p>${esc(v.percurso)}</p>
+      <h3>O que você fez bem</h3><ul>${v.pontos_fortes.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
+      ${v.para_aprimorar.length ? `<h3>O que ainda pode aprimorar</h3><ul>${v.para_aprimorar.map((p) => `<li><b>${esc(p.ponto)}</b>${p.como ? `: ${esc(p.como)}` : ''}</li>`).join('')}</ul>` : ''}
+      <h3>Pendências antes da banca</h3>${v.pendencias.length ? `<ul>${v.pendencias.map((p) => `<li>${p.p ? `<b>${p.p}</b>: ` : ''}${esc(p.o_que_fazer)}</li>`).join('')}</ul>` : '<p>Não há pendências registradas.</p>'}
+      ${v.prepare_se.length ? `<h3>Para se preparar para a banca</h3><ul>${v.prepare_se.map((p) => `<li><b>${esc(p.tema)}</b>${p.dica ? `: ${esc(p.dica)}` : ''}</li>`).join('')}</ul>` : ''}
+      <p>${esc(v.fechamento)}</p>`;
+  }
+  function textoDevolutiva(aluno, v) {
+    const L = [v.abertura, '', 'SEU PERCURSO', v.percurso, '', 'O QUE VOCÊ FEZ BEM', ...v.pontos_fortes.map((p) => `• ${p}`)];
+    if (v.para_aprimorar.length) L.push('', 'O QUE AINDA PODE APRIMORAR', ...v.para_aprimorar.map((p) => `• ${p.ponto}${p.como ? `: ${p.como}` : ''}`));
+    L.push('', 'PENDÊNCIAS ANTES DA BANCA', ...(v.pendencias.length ? v.pendencias.map((p) => `• ${p.p ? p.p + ': ' : ''}${p.o_que_fazer}`) : ['Não há pendências registradas.']));
+    if (v.prepare_se.length) L.push('', 'PARA SE PREPARAR PARA A BANCA', ...v.prepare_se.map((p) => `• ${p.tema}${p.dica ? `: ${p.dica}` : ''}`));
+    L.push('', v.fechamento);
+    return L.join('\n');
+  }
+  function blocoDevolutiva(d) {
+    const v = d.devolutiva;
+    return `<div class="card" id="devolutiva"><h2>Devolutiva ao estudante <span class="tag neutra">pode ser enviada</span></h2>
+      <div class="hint">Escrita para o próprio estudante, a partir deste dossiê: sem comparação com colegas, sem médias da turma e sem revelar as perguntas da banca (elas viram temas para se preparar). As pendências vêm só das Ps não entregues e das indicações não atendidas no Padlet.</div>
+      <div class="barra-ferr no-print"><button class="btn ouro" id="gerarDev">${v ? '↻ Gerar novamente' : '✨ Gerar devolutiva'}</button>${v ? '<button class="btn sec" id="copiarDev">📋 Copiar texto</button><button class="btn sec" id="imprimirDev">🖨 Imprimir só a devolutiva</button>' : ''}</div>
+      <div id="statusDev" class="status">${v ? `Gerada em ${new Date(v.geradoEm).toLocaleString('pt-BR')} · ${esc(v.modelo)}${v.desatualizada ? ' · <b>o dossiê foi gerado de novo depois dela: gere novamente</b>' : ''}` : (d.dossie?.etapa === 'final' ? '' : 'O dossiê ainda é preliminar: a devolutiva sai sem a conferência das correções no Padlet.')}</div>
+      ${v ? `<div class="devolutiva" id="corpoDev">${corpoDevolutiva(d.aluno.nome, v)}</div>` : ''}</div>`;
+  }
+  function imprimirSecao(titulo, html) {
+    const w = window.open('', '_blank'); if (!w) return;
+    w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>body{font-family:Arial,sans-serif;max-width:760px;margin:30px auto;color:#222;line-height:1.5;font-size:14px}h1{font-size:18px;color:#0b3d5c}h3{font-size:15px;color:#0b3d5c;margin-top:18px}.linhas{border-bottom:1px solid #999;height:22px}.marcas span{display:inline-block;border:1px solid #777;border-radius:3px;padding:1px 8px;margin-right:6px;font-size:12px}.perg{page-break-inside:avoid;margin-bottom:14px}.hint{color:#666;font-size:12px}</style></head><body><h1>${esc(titulo)}</h1>${html}</body></html>`);
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+  }
+
+  // ================= roteiro da arguição e parecer final =================
+  const MARCAS = [['bem', '✔ Respondeu bem', 'ok'], ['parcial', '≈ Parcialmente', 'aviso'], ['nao', '✘ Não respondeu', 'ruim']];
+  const ENC = { a_definir: 'A definir pela banca', aprovado: 'Aprovado', aprovado_ajustes: 'Aprovado com ajustes', nao_aprovado: 'Não aprovado' };
+  const ROT_DES = { bem: ['respondeu bem', 'ok'], parcial: ['parcialmente', 'aviso'], nao: ['não respondeu', 'ruim'], nao_registrado: ['não registrado', 'neutra'] };
+  async function telaBanca(chave, alunoChave) {
+    app.innerHTML = '<div class="card">Abrindo o roteiro…</div>';
+    const d = await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(alunoChave)}`);
+    const x = d.dossie, a = d.aluno, f = d.fatos;
+    const voltar = `#/turma/${encodeURIComponent(chave)}/aluno/${encodeURIComponent(alunoChave)}`;
+    if (!x) { app.innerHTML = `<div class="card"><h2>Roteiro da arguição · ${esc(a.nome)}</h2><div class="aviso-box">Gere o dossiê primeiro: o roteiro usa as perguntas dele.</div><div class="barra-ferr"><a class="btn" href="${voltar}">Abrir o dossiê</a></div></div>`; return; }
+    const b = d.banca || {};
+    const st = { data: b.data || new Date().toISOString().slice(0, 10), membros: b.membros || '', geral: b.geral || '', encaminhamento: b.encaminhamento || 'a_definir', respostas: x.perguntas_banca.map((_, i) => ({ marca: b.respostas?.[i]?.marca || '', notas: b.respostas?.[i]?.notas || '' })) };
+    const pend = (d.devolutiva?.pendenciasBase || []);
+    app.innerHTML = `<div class="dossie banca">
+      <div class="capa"><small>Roteiro da arguição · uso exclusivo da banca</small><h2>${esc(a.nome)}</h2><div>${esc(f.fioDesafio[0]?.desafio || '')}</div>
+        <div class="meta"><span><b>Perfil:</b> ${esc(f.perfil.rotulo)}</span><span><b>Notas:</b> ${PS.map((p) => `${p} ${fmt(f.notas[p])}`).join(' · ')}</span><span><b>Média (÷6):</b> ${fmt(f.mediaAluno)}</span><span><b>Dossiê:</b> ${x.etapa === 'final' ? 'versão final' : 'versão preliminar'}</span></div></div>
+      <div class="card no-print"><div class="barra-ferr" style="margin-top:0"><button class="btn sec" id="imprimirRoteiro">🖨 Imprimir roteiro em branco</button><a class="btn sec" href="${voltar}">← Voltar ao dossiê</a></div>
+        <div class="hint">As anotações são salvas sozinhas enquanto você escreve. Dá para usar no celular ou no notebook durante a banca. <span id="salvoBanca" class="status" style="display:inline"></span></div></div>
+      <div class="card"><div class="grade2"><div><label for="bData">Data da banca</label><input type="date" id="bData" value="${esc(st.data)}"></div><div><label for="bMembros">Membros da banca</label><input type="text" id="bMembros" value="${esc(st.membros)}" placeholder="Nomes dos professores, separados por vírgula"></div></div>
+        <div class="hint" style="margin-top:8px"><b>Foco sugerido pelo perfil (${esc(f.perfil.rotulo)}):</b> ${esc(f.perfil.guia?.fazer || '')}</div>
+        ${pend.length ? `<div class="aviso-box" style="margin-top:8px"><b>Pendências registradas na devolutiva:</b> ${pend.map((p) => esc(`${p.p ? p.p + ': ' : ''}${p.texto}`)).join(' · ')}</div>` : ''}</div>
+      ${x.perguntas_banca.map((q, i) => `<div class="card perg-banca"><div class="perg" style="margin:0">${q.angulo ? `<span class="tag neutra">${esc(ANGULOS[q.angulo] || q.angulo)}</span>` : ''}<div class="q">${i + 1}. ${esc(q.pergunta)}</div><div class="det"><b>O que uma boa resposta mostraria:</b> ${esc(q.o_que_observar)}</div>${q.base ? `<div class="det base-perg"><b>Apoia-se no dossiê:</b> ${esc(q.base)}</div>` : ''}</div>
+        <div class="marcas no-print" data-i="${i}">${MARCAS.map(([k, r, c]) => `<button type="button" class="btn peq marca ${st.respostas[i].marca === k ? 'ativa ' + c : 'sec'}" data-marca="${k}">${r}</button>`).join('')}</div>
+        <textarea class="notas-banca" data-i="${i}" rows="3" placeholder="O que o estudante respondeu, exemplos que deu, pontos que a banca quer registrar">${esc(st.respostas[i].notas)}</textarea></div>`).join('')}
+      <div class="card"><h2>Observações gerais e encaminhamento</h2><textarea id="bGeral" rows="5" placeholder="Impressão geral da banca, ajustes pedidos, combinados com o estudante">${esc(st.geral)}</textarea>
+        <label for="bEnc" style="margin-top:8px">Encaminhamento (decisão da banca)</label><select id="bEnc">${Object.entries(ENC).map(([k, r]) => `<option value="${k}" ${st.encaminhamento === k ? 'selected' : ''}>${r}</option>`).join('')}</select>
+        <div class="barra-ferr no-print"><button class="btn ouro" id="gerarParecer">${b.parecer ? '↻ Gerar parecer e ata novamente' : '✨ Gerar parecer final e ata'}</button></div><div id="statusParecer" class="status">${b.parecer ? `Gerado em ${new Date(b.parecer.em).toLocaleString('pt-BR')} · ${esc(b.parecer.modelo)}${b.salvoEm && b.parecer.baseadoEm !== b.salvoEm ? ' · <b>as anotações mudaram depois: gere novamente</b>' : ''}` : 'A IA usa as suas anotações como fonte principal e o dossiê como contexto. Ela não inventa respostas que não foram anotadas e respeita o encaminhamento escolhido.'}</div></div>
+      <div id="areaParecer">${b.parecer ? blocoParecer(b.parecer.conteudo, x) : ''}</div>
+    </div>`;
+    let timer = null;
+    const salvar = () => { clearTimeout(timer); $('#salvoBanca').textContent = 'salvando…'; timer = setTimeout(async () => { try { const r = await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(alunoChave)}/banca`, { method: 'PUT', body: JSON.stringify(st) }); $('#salvoBanca').textContent = `✔ salvo às ${new Date(r.salvoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; } catch (e) { $('#salvoBanca').textContent = `não salvou: ${e.message}`; } }, 700); };
+    $('#bData').onchange = (e) => { st.data = e.target.value; salvar(); };
+    $('#bMembros').oninput = (e) => { st.membros = e.target.value; salvar(); };
+    $('#bGeral').oninput = (e) => { st.geral = e.target.value; salvar(); };
+    $('#bEnc').onchange = (e) => { st.encaminhamento = e.target.value; salvar(); };
+    app.querySelectorAll('.notas-banca').forEach((t) => { t.oninput = () => { st.respostas[+t.dataset.i].notas = t.value; salvar(); }; });
+    app.querySelectorAll('.marcas').forEach((box) => box.querySelectorAll('.marca').forEach((bt) => { bt.onclick = () => {
+      const i = +box.dataset.i, k = bt.dataset.marca; st.respostas[i].marca = st.respostas[i].marca === k ? '' : k;
+      box.querySelectorAll('.marca').forEach((o) => { const c = MARCAS.find((m) => m[0] === o.dataset.marca)[2]; o.className = `btn peq marca ${st.respostas[i].marca === o.dataset.marca ? 'ativa ' + c : 'sec'}`; }); salvar(); }; }));
+    $('#imprimirRoteiro').onclick = () => imprimirSecao(`Roteiro da arguição · ${a.nome}`, `<p><b>Desafio:</b> ${esc(f.fioDesafio[0]?.desafio || '')}</p><p><b>Data:</b> ____/____/______ &nbsp; <b>Banca:</b> ________________________________________</p><p class="hint"><b>Foco sugerido pelo perfil (${esc(f.perfil.rotulo)}):</b> ${esc(f.perfil.guia?.fazer || '')}</p>${x.perguntas_banca.map((q, i) => `<div class="perg"><h3>${i + 1}. ${esc(q.pergunta)}</h3><div class="hint">O que uma boa resposta mostraria: ${esc(q.o_que_observar)}</div><div class="marcas" style="margin:6px 0"><span>☐ respondeu bem</span><span>☐ parcialmente</span><span>☐ não respondeu</span></div><div class="linhas"></div><div class="linhas"></div><div class="linhas"></div></div>`).join('')}<h3>Observações gerais</h3><div class="linhas"></div><div class="linhas"></div><div class="linhas"></div><p><b>Encaminhamento:</b> ☐ Aprovado ☐ Aprovado com ajustes ☐ Não aprovado</p>`);
+    $('#gerarParecer').onclick = async () => {
+      const bt = $('#gerarParecer'); bt.disabled = true; clearTimeout(timer); $('#statusParecer').textContent = 'Salvando as anotações e redigindo o parecer… cerca de 30 segundos.';
+      try { await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(alunoChave)}/banca`, { method: 'PUT', body: JSON.stringify(st) }); await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(alunoChave)}/parecer`, { method: 'POST', body: '{}' }); await telaBanca(chave, alunoChave); document.getElementById('areaParecer')?.scrollIntoView(); }
+      catch (e) { $('#statusParecer').textContent = `Não foi possível gerar: ${e.message}`; bt.disabled = false; }
+    };
+    if ($('#copiarAta')) $('#copiarAta').onclick = async () => { try { await navigator.clipboard.writeText($('#textoAta').innerText); $('#statusParecer').textContent = 'Ata copiada.'; } catch { $('#statusParecer').textContent = 'Selecione o texto da ata e copie.'; } };
+    if ($('#imprimirParecer')) $('#imprimirParecer').onclick = () => imprimirSecao(`Parecer da banca · ${a.nome}`, $('#corpoParecer').innerHTML);
+  }
+  function blocoParecer(p, x) {
+    return `<div class="card"><h2>Parecer final e ata</h2><div class="barra-ferr no-print" style="margin-top:0"><button class="btn sec" id="copiarAta">📋 Copiar a ata</button><button class="btn sec" id="imprimirParecer">🖨 Imprimir parecer e ata</button></div>
+      <div id="corpoParecer"><h3>Parecer</h3><div class="texto">${esc(p.parecer)}</div>
+      ${p.arguicao.length ? `<h3>Arguição, pergunta a pergunta</h3><table><tbody>${p.arguicao.map((r) => `<tr><td style="width:40%">${r.n}. ${esc(x.perguntas_banca[r.n - 1]?.pergunta || '')}</td><td><span class="tag ${ROT_DES[r.desempenho][1]}">${ROT_DES[r.desempenho][0]}</span></td><td>${esc(r.comentario)}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${p.pontos_fortes.length ? `<h3>O que o estudante demonstrou na banca</h3><ul class="lista-ev">${p.pontos_fortes.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}
+      ${p.recomendacoes.length ? `<h3>Recomendações da banca</h3><ul class="lista-ev">${p.recomendacoes.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}
+      <h3>Ata</h3><div class="texto ata" id="textoAta">${esc(p.ata)}</div></div></div>`;
   }
 
   // O que cada perfil de trajetória significa, como analisar e o que fazer.
@@ -297,7 +412,8 @@
     const partes = h.split('/');
     window.scrollTo(0, 0);
     try {
-      if (partes[0] === 'turma' && partes[2] === 'aluno') await telaAluno(partes[1], partes[3]);
+      if (partes[0] === 'turma' && partes[2] === 'aluno' && partes[4] === 'banca') await telaBanca(partes[1], partes[3]);
+      else if (partes[0] === 'turma' && partes[2] === 'aluno') await telaAluno(partes[1], partes[3]);
       else if (partes[0] === 'turma' && partes[2] === 'relatorio') await telaRelatorio(partes[1]);
       else if (partes[0] === 'turma' && partes[1]) await telaTurma(partes[1]);
       else await telaInicio();

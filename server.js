@@ -6,7 +6,7 @@ const db = require('./db');
 const dados = require('./dados');
 const padlet = require('./padlet');
 const { fatosAluno, fatosTurma, contextoTurma } = require('./fatos');
-const { montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, montarPromptCorrecoes, limparCorrecoes } = require('./prompts');
+const { montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, montarPromptCorrecoes, limparCorrecoes, montarPromptDevolutiva, limparDevolutiva, montarPromptParecer, limparParecer } = require('./prompts');
 const { P, ORDEM_P, TEMAS } = require('./fontes');
 const { configIA, configDaRequisicao, chamarIA, statusIA } = require('./ia');
 
@@ -202,6 +202,8 @@ function pacoteDossie(m, chave, d) {
     entregas: ORDEM_P.filter((id) => aluno.ps[id]).map((id) => ({ p: id, titulo: P[id].titulo, total: aluno.ps[id].total, completa: aluno.ps[id].completa, desafio: aluno.ps[id].desafio })),
     padlet: m.estado.padlet?.[chave] ? { ...m.estado.padlet[chave], versoes: undefined, versoesResumo: resumoVersoes(m.estado.padlet[chave].versoes) } : null, temas: TEMAS,
     correcoes: m.estado.correcoes?.[chave]?.conteudo || null,
+    devolutiva: m.estado.devolutivas?.[chave] ? { ...m.estado.devolutivas[chave].conteudo, pendenciasBase: m.estado.devolutivas[chave].pendencias, geradoEm: m.estado.devolutivas[chave].em, modelo: m.estado.devolutivas[chave].modelo, desatualizada: Boolean(d && m.estado.devolutivas[chave].dossieEm !== d.em) } : null,
+    banca: m.estado.bancas?.[chave] || null,
     dossie: d ? { ...d.conteudo, etapa: d.etapa || 'preliminar', geradoEm: d.em, modelo: d.modelo, desatualizado: d.hashDados !== hashDadosAluno(m, chave) } : null
   };
 }
@@ -223,6 +225,58 @@ app.post('/api/turmas/:chave/alunos/:aluno/dossie', async (req, res) => {
     const registro = { conteudo: limparDossie(bruto), etapa: correcoes ? 'final' : 'preliminar', em: new Date().toISOString(), modelo: `${req.ia.nome} · ${req.ia.modelo}`, hashDados: hd };
     await db.alterarTurma(req.params.chave, (t) => { t.dossies[aluno.chave] = registro; });
     res.json(pacoteDossie(m, aluno.chave, registro));
+  } catch (e) { erro(res, e, 502); }
+});
+
+// ---------- Devolutiva ao estudante ----------
+// Pendências objetivas: Ps não entregues e indicações do orientador não atendidas (ou só em parte) no Padlet.
+function pendenciasDoAluno(m, aluno) {
+  const lista = aluno.faltam.filter((id) => m.contexto.psAtivas?.includes(id)).map((id) => ({ p: id, tipo: 'nao_entregue', texto: `${id} (${P[id].titulo}) não foi entregue.` }));
+  const c = m.estado.correcoes?.[aluno.chave]?.conteudo;
+  if (c) for (const [p, x] of Object.entries(c.porP || {})) for (const i of x.itens || []) if (i.status === 'nao_corrigido' || i.status === 'parcial') lista.push({ p, tipo: i.status, texto: `${i.indicacao}${i.status === 'parcial' ? ' (atendida só em parte)' : ''}` });
+  const pad = m.estado.padlet?.[aluno.chave]?.verificacao;
+  if (pad?.faltamNoPadlet?.length) lista.push({ p: '', tipo: 'padlet', texto: `Ainda não aparecem no Padlet: ${pad.faltamNoPadlet.join(', ')}.` });
+  return lista;
+}
+app.post('/api/turmas/:chave/alunos/:aluno/devolutiva', async (req, res) => {
+  try {
+    if (!req.ia.configurada) throw Object.assign(new Error(`${req.ia.variavelChave} não configurada: a devolutiva precisa de IA.`), { status: 401 });
+    const m = await montarTurma(req.params.chave);
+    const { aluno, fatos } = dadosDoAluno(m, req.params.aluno);
+    const d = m.estado.dossies?.[aluno.chave];
+    if (!d) throw Object.assign(new Error('Gere o dossiê primeiro: a devolutiva é escrita a partir dele.'), { status: 400 });
+    const pendencias = pendenciasDoAluno(m, aluno);
+    const bruto = await chamarIA(montarPromptDevolutiva(aluno, fatos, d.conteudo, pendencias.map((x) => `${x.p ? x.p + ': ' : ''}${x.texto}`)), 0.2, { config: req.ia });
+    const registro = { conteudo: limparDevolutiva(bruto), pendencias, dossieEm: d.em, etapa: d.etapa || 'preliminar', em: new Date().toISOString(), modelo: `${req.ia.nome} · ${req.ia.modelo}` };
+    await db.alterarTurma(req.params.chave, (t) => { t.devolutivas = t.devolutivas || {}; t.devolutivas[aluno.chave] = registro; });
+    m.estado.devolutivas = { ...(m.estado.devolutivas || {}), [aluno.chave]: registro };
+    res.json(pacoteDossie(m, aluno.chave, d));
+  } catch (e) { erro(res, e, 502); }
+});
+
+// ---------- Roteiro de arguição e parecer final ----------
+const textoCurto = (v, n) => String(v ?? '').slice(0, n);
+app.put('/api/turmas/:chave/alunos/:aluno/banca', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const anot = { data: textoCurto(b.data, 40), membros: textoCurto(b.membros, 600), geral: textoCurto(b.geral, 8000), encaminhamento: ['aprovado', 'aprovado_ajustes', 'nao_aprovado', 'a_definir'].includes(b.encaminhamento) ? b.encaminhamento : 'a_definir', respostas: (Array.isArray(b.respostas) ? b.respostas : []).slice(0, 12).map((r) => ({ marca: ['bem', 'parcial', 'nao'].includes(r?.marca) ? r.marca : '', notas: textoCurto(r?.notas, 4000) })), salvoEm: new Date().toISOString() };
+    await db.alterarTurma(req.params.chave, (t) => { t.bancas = t.bancas || {}; t.bancas[req.params.aluno] = { ...(t.bancas[req.params.aluno] || {}), ...anot }; });
+    res.json({ salvoEm: anot.salvoEm });
+  } catch (e) { erro(res, e); }
+});
+app.post('/api/turmas/:chave/alunos/:aluno/parecer', async (req, res) => {
+  try {
+    if (!req.ia.configurada) throw Object.assign(new Error(`${req.ia.variavelChave} não configurada: o parecer precisa de IA.`), { status: 401 });
+    const m = await montarTurma(req.params.chave);
+    const { aluno, fatos } = dadosDoAluno(m, req.params.aluno);
+    const d = m.estado.dossies?.[aluno.chave];
+    const banca = m.estado.bancas?.[aluno.chave];
+    if (!d) throw Object.assign(new Error('Gere o dossiê primeiro.'), { status: 400 });
+    if (!banca || (!banca.geral && !(banca.respostas || []).some((r) => r.marca || r.notas))) throw Object.assign(new Error('Faça anotações da arguição antes de gerar o parecer.'), { status: 400 });
+    const bruto = await chamarIA(montarPromptParecer(aluno, fatos, d.conteudo, banca), 0.2, { config: req.ia });
+    const parecer = { conteudo: limparParecer(bruto), em: new Date().toISOString(), modelo: `${req.ia.nome} · ${req.ia.modelo}`, baseadoEm: banca.salvoEm };
+    await db.alterarTurma(req.params.chave, (t) => { t.bancas = t.bancas || {}; t.bancas[aluno.chave] = { ...(t.bancas[aluno.chave] || {}), parecer }; });
+    res.json({ parecer });
   } catch (e) { erro(res, e, 502); }
 });
 

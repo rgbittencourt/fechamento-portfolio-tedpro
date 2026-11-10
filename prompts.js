@@ -276,4 +276,98 @@ function limparCorrecoes(r = {}) {
   return { porP, sintese: t(r.sintese), conta, taxa: verif ? Math.round(((conta.corrigido + conta.parcial * 0.5) / verif) * 100) : null };
 }
 
-module.exports = { montarPromptCorrecoes, limparCorrecoes, STATUS_CORRECAO, ANGULOS, montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, VERIFICACOES, blocoEntrega };
+// ---------- Devolutiva ao estudante (antes da banca) ----------
+function montarPromptDevolutiva(aluno, fatos, dossie, pendencias) {
+  const dados = {
+    nome: aluno.nome, desafio: fatos.fioDesafio?.[0]?.desafio || '', entregues: aluno.entregues, naoEntregues: aluno.faltam,
+    suasNotas: fatos.notas, temasQueMelhoraram: fatos.superados?.map((s) => s.tema) || [], temasQueSeRepetiram: fatos.persistentes?.map((s) => `${s.tema} (${s.ps.join(', ')})`) || [],
+    orientacaoInternaDoPerfil: fatos.perfil?.guia?.fazer || '', pendencias,
+    dossie: dossie ? { fio_do_desafio: dossie.fio_do_desafio?.resumo, pontos_fortes: dossie.pontos_fortes, fragilidades: dossie.fragilidades, contradicoes: dossie.contradicoes, evolucao: dossie.evolucao, sugestoes_continuidade: dossie.sugestoes_continuidade, focos_da_arguicao: (dossie.perguntas_banca || []).map((q) => ({ angulo: q.angulo, base: q.base || q.por_que })) } : null
+  };
+  return `Você é orientador da Especialização TEDPRO (IFSC) e escreve a DEVOLUTIVA de um estudante antes da banca de fechamento do portfólio (P1 a P6 no Padlet, sempre em torno do mesmo desafio e do mesmo público). A devolutiva será ENVIADA AO PRÓPRIO ESTUDANTE.
+
+OBJETIVO
+Que o estudante chegue à banca preparado: entenda o próprio percurso, saiba o que fez bem, o que ainda pode aprimorar, o que falta entregar ou corrigir no Padlet e sobre quais temas a banca deve conversar.
+
+REGRAS
+- Escreva em segunda pessoa ("você"), em português claro, com tom acolhedor, respeitoso e direto.
+- NUNCA compare o estudante com colegas ou com a turma; não cite médias da turma, posição, ranking nem o rótulo do perfil de trajetória. A "orientacaoInternaDoPerfil" é só para você calibrar o tom e os focos.
+- NÃO revele as perguntas da banca. Transforme os "focos_da_arguicao" em TEMAS para se preparar, com uma dica de como se preparar (o que reler, que evidência levar, que escolha saber justificar). Nada de reproduzir a pergunta.
+- Pendências: use SOMENTE a lista "pendencias" (Ps não entregues e indicações não atendidas). Se estiver vazia, diga que não há pendências registradas. Não invente pendências.
+- Baseie tudo nos dados abaixo; se não houver registro de algo, não afirme.
+- Seja concreto: cite o desafio, o público, a P e o que fazer. Evite elogios vagos.
+- Não use travessão (—).
+
+DADOS
+${JSON.stringify(dados)}
+
+Responda APENAS em JSON válido, neste formato:
+{"abertura":"um parágrafo curto, cumprimentando pelo nome e situando o objetivo da devolutiva",
+"percurso":"um parágrafo sobre o percurso de P1 até a última P entregue, retomando o desafio e o público",
+"pontos_fortes":["3 a 5 itens concretos, citando a P"],
+"para_aprimorar":[{"ponto":"","como":"o que fazer, de forma prática"}],
+"pendencias":[{"p":"P3","o_que_fazer":""}],
+"prepare_se":[{"tema":"","dica":""}],
+"fechamento":"um parágrafo curto de encorajamento e próximos passos até a banca"}`;
+}
+function limparDevolutiva(r = {}) {
+  const lista = (v) => (Array.isArray(v) ? v : []);
+  const t = (v) => semTravessao(String(v || '').trim());
+  return {
+    abertura: t(r.abertura), percurso: t(r.percurso),
+    pontos_fortes: lista(r.pontos_fortes).map(t).filter(Boolean),
+    para_aprimorar: lista(r.para_aprimorar).map((x) => ({ ponto: t(x.ponto), como: t(x.como) })).filter((x) => x.ponto),
+    pendencias: lista(r.pendencias).map((x) => ({ p: /^P[1-6]$/.test(String(x.p)) ? String(x.p) : '', o_que_fazer: t(x.o_que_fazer) })).filter((x) => x.o_que_fazer),
+    prepare_se: lista(r.prepare_se).map((x) => ({ tema: t(x.tema), dica: t(x.dica) })).filter((x) => x.tema),
+    fechamento: t(r.fechamento)
+  };
+}
+
+// ---------- Parecer final da banca (depois da arguição) ----------
+const MARCAS_BANCA = { bem: 'respondeu bem', parcial: 'respondeu parcialmente', nao: 'não respondeu ou respondeu mal', '': 'sem marcação' };
+const ENCAMINHAMENTOS = { aprovado: 'Aprovado', aprovado_ajustes: 'Aprovado com ajustes', nao_aprovado: 'Não aprovado', a_definir: 'A definir pela banca' };
+function montarPromptParecer(aluno, fatos, dossie, banca) {
+  const perguntas = (dossie?.perguntas_banca || []).map((q, i) => {
+    const r = banca.respostas?.[i] || {};
+    return { n: i + 1, angulo: q.angulo, pergunta: q.pergunta, o_que_uma_boa_resposta_mostraria: q.o_que_observar, marcacao_da_banca: MARCAS_BANCA[r.marca || ''], anotacoes_da_banca: r.notas || '' };
+  });
+  const enc = ENCAMINHAMENTOS[banca.encaminhamento] || ENCAMINHAMENTOS.a_definir;
+  return `Você secretaria a banca de fechamento do portfólio da Especialização TEDPRO (IFSC) e redige, a partir das ANOTAÇÕES DOS PROFESSORES durante a arguição, o PARECER FINAL e a ATA.
+
+FONTES, EM ORDEM DE PESO
+1. Anotações e marcações da banca em cada pergunta e as observações gerais: são a fonte principal.
+2. O dossiê (síntese, pontos fortes, fragilidades, verificações) e as notas das Ps: contexto do percurso.
+
+REGRAS
+- Não invente respostas: se uma pergunta não tem anotação nem marcação, registre "não registrado" e não deduza o que o estudante disse.
+- Diferencie o que o estudante demonstrou na arguição do que já constava no portfólio.
+- O encaminhamento é decisão da banca: "${enc}". Respeite-o. Se for "A definir pela banca", não recomende aprovação nem reprovação; apenas organize os elementos para a decisão.
+- Tom institucional, claro e respeitoso. Não use travessão (—).
+- A ata deve ter data, estudante, membros da banca, título ou desafio do trabalho, síntese da arguição e encaminhamento. Use apenas as informações fornecidas; deixe "___" onde faltar algum dado.
+
+DADOS DA BANCA
+${JSON.stringify({ estudante: aluno.nome, matricula: aluno.matricula || '', data: banca.data || '', membros: banca.membros || '', desafio: fatos.fioDesafio?.[0]?.desafio || '', notasDasPs: fatos.notas, mediaDividindoPor6: fatos.mediaAluno, encaminhamento: enc, observacoesGerais: banca.geral || '', perguntas })}
+
+DOSSIÊ (contexto)
+${JSON.stringify(dossie ? { sintese: dossie.sintese, pontos_fortes: dossie.pontos_fortes, fragilidades: dossie.fragilidades, verificacoes: Object.fromEntries(Object.entries(dossie.verificacoes || {}).map(([k, v]) => [k, v.resposta])), parecer_orientador: dossie.parecer_orientador } : null)}
+
+Responda APENAS em JSON válido, neste formato:
+{"parecer":"2 a 3 parágrafos: percurso, desempenho na arguição e encaminhamento",
+"arguicao":[{"n":1,"desempenho":"bem|parcial|nao|nao_registrado","comentario":"uma ou duas frases a partir das anotações"}],
+"pontos_fortes":["o que o estudante demonstrou na banca"],
+"recomendacoes":["ajustes ou próximos passos indicados pela banca"],
+"ata":"texto formal da ata, em 1 a 3 parágrafos"}`;
+}
+function limparParecer(r = {}) {
+  const lista = (v) => (Array.isArray(v) ? v : []);
+  const t = (v) => semTravessao(String(v || '').trim());
+  return {
+    parecer: t(r.parecer),
+    arguicao: lista(r.arguicao).map((x) => ({ n: Number(x.n) || 0, desempenho: ['bem', 'parcial', 'nao', 'nao_registrado'].includes(x.desempenho) ? x.desempenho : 'nao_registrado', comentario: t(x.comentario) })),
+    pontos_fortes: lista(r.pontos_fortes).map(t).filter(Boolean),
+    recomendacoes: lista(r.recomendacoes).map(t).filter(Boolean),
+    ata: t(r.ata)
+  };
+}
+
+module.exports = { montarPromptDevolutiva, limparDevolutiva, montarPromptParecer, limparParecer, ENCAMINHAMENTOS, montarPromptCorrecoes, limparCorrecoes, STATUS_CORRECAO, ANGULOS, montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, VERIFICACOES, blocoEntrega };
