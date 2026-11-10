@@ -31,6 +31,20 @@
   function erroNaTela(e) { app.innerHTML = `<div class="card"><div class="erro-box">${esc(e.message)}</div><div class="barra-ferr"><a class="btn sec" href="#/">Voltar ao início</a></div></div>`; }
 
   // ================= início =================
+  // Avaliações por turma em cada P (turmas de mesmo nome aparecem somadas na mesma linha, ex.: "13 + 0").
+  function tabelaTurmas(f) {
+    const norm = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\bturma\b|\btedpro\b|\b(19|20)\d\d\b/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+    const linhas = new Map();
+    for (const p of PS) for (const t of f.opcoes[p] || []) {
+      const k = norm(t.nome) || t.id;
+      if (!linhas.has(k)) linhas.set(k, { nome: t.nome, ps: {} });
+      (linhas.get(k).ps[p] = linhas.get(k).ps[p] || []).push(t.quantidade);
+    }
+    if (!linhas.size) return '';
+    const ord = [...linhas.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    return `<h3>Avaliações por turma em cada P</h3><div style="overflow:auto"><table><thead><tr><th>Turma</th>${PS.map((p) => `<th style="text-align:center">${p}</th>`).join('')}</tr></thead><tbody>${ord.map((l) => `<tr><td><b>${esc(l.nome)}</b></td>${PS.map((p) => { const v = l.ps[p]; return `<td style="text-align:center">${v ? `<b>${v.join(' + ')}</b>${v.length > 1 ? ' <span class="tag aviso" title="Há mais de uma turma com esse nome nesta P">repetida</span>' : ''}` : '<span class="hint">—</span>'}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+
   async function telaInicio() {
     app.innerHTML = '<div class="card">Buscando os dados das P1 a P6…</div>';
     const f = await api('/api/fontes');
@@ -46,7 +60,7 @@
         <div class="barra-ferr"><button class="btn ouro" id="abrir">Abrir fechamento</button></div></div>
         <div id="statusAbrir" class="status"></div></div>
       ${f.abertas.length ? `<div class="card"><h2>Fechamentos já abertos</h2><table><thead><tr><th>Turma</th><th>Ps ligadas</th><th>Atualizado</th><th></th></tr></thead><tbody>${f.abertas.map((t) => `<tr><td><b>${esc(t.nome)}</b></td><td>${PS.filter((p) => t.mapa?.[p]).join(', ') || '—'}</td><td>${t.atualizadaEm ? new Date(t.atualizadaEm).toLocaleDateString('pt-BR') : ''}</td><td><a class="btn peq" href="#/turma/${encodeURIComponent(t.chave)}">Abrir</a> <button class="btn peq sec" data-excluir="${esc(t.chave)}" data-nome="${esc(t.nome)}">Excluir</button></td></tr>`).join('')}</tbody></table></div>` : ''}
-      <div class="card"><h2>Dados das Ps <button class="btn sec peq no-print" id="atualizarFontes">↻ Atualizar do GitHub</button></h2><div class="fontes">${fontes}</div><div class="hint" style="margin-top:8px">Lidos em ${new Date(f.atualizadoEm).toLocaleString('pt-BR')}.</div></div>`;
+      <div class="card"><h2>Dados das Ps <button class="btn sec peq no-print" id="atualizarFontes">↻ Atualizar do GitHub</button></h2><div class="fontes">${fontes}</div>${tabelaTurmas(f)}<div class="hint" style="margin-top:8px">Lidos em ${new Date(f.atualizadoEm).toLocaleString('pt-BR')}.</div></div>`;
     $('#atualizarFontes').onclick = async () => { await api('/api/fontes?atualizar=1'); telaInicio(); };
     app.querySelectorAll('[data-excluir]').forEach((b) => (b.onclick = () => excluirFechamento(b.dataset.excluir, b.dataset.nome)));
     const procurar = async () => {
@@ -94,6 +108,7 @@
         <div class="kpi"><small>Completaram P1 a P6</small><strong>${completos.length}</strong><em>recebem o dossiê de banca</em></div>
         <div class="kpi"><small>Média geral</small><strong>${fmt(t.turma.mediaGeral)}</strong><em>média das médias dos estudantes</em></div>
         <div class="kpi"><small>Notas subindo / caindo</small><strong>${t.turma.melhoraram} / ${t.turma.pioraram}</strong><em>tendência ao longo das Ps</em></div></div>
+        <h3>Avaliações consideradas neste fechamento</h3><div class="fontes">${PS.map((p) => { const c = t.contagem[p] || {}; return t.mapa[p] ? `<span class="fonte ok" title="Turma ${esc(c.turma)} na ${p}${c.consideradas !== c.avaliacoes ? ` · ${c.avaliacoes - c.consideradas} avaliação(ões) repetida(s) ou sem nome não contaram` : ''}"><b>${p}</b> ${c.consideradas} avaliação(ões)${c.consideradas !== c.avaliacoes ? ` de ${c.avaliacoes}` : ''} · ${esc(c.turma)}</span>` : `<span class="fonte erro"><b>${p}</b> não ligada</span>`; }).join('')}</div>
         <div class="barra-ferr no-print"><a class="btn ouro" href="#/turma/${encodeURIComponent(chave)}/relatorio">📊 Relatório da turma</a><button class="btn" id="gerarTodos">✨ Gerar dossiês dos que completaram</button><button class="btn sec" id="atualizarDados">↻ Atualizar dados das Ps</button><label class="btn sec" for="listaPadlet" style="margin:0">📎 Importar lista de Padlets (TXT)</label><input type="file" id="listaPadlet" accept=".txt,.csv,text/plain" class="oculto"><a class="btn sec" href="#/">Trocar de turma</a></div>
         <div class="hint" style="margin-top:6px">Lista de Padlets: um estudante por linha, com o nome e o link (ex.: <code>Ana Paula Souza ; https://padlet.com/...</code>). A ordem e o separador não importam.</div>
         <div id="statusLote" class="status"></div><div class="progresso oculto" id="progLote"><span></span></div>

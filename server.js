@@ -88,7 +88,12 @@ app.get('/api/turmas/:chave', async (req, res) => {
     const c = await dados.carregarBases();
     const sugestao = dados.sugerirTurmas(c.bases, m.estado.nome);
     const novas = Object.fromEntries(ORDEM_P.filter((id) => !m.estado.mapa[id] && sugestao[id]).map((id) => [id, sugestao[id]]));
-    res.json({ chave: req.params.chave, nome: m.estado.nome, mapa: m.estado.mapa, opcoes: dados.opcoesPorP(c.bases), sugestoesNovas: novas, status: m.status, alunos, duplicadas: m.duplicadas, turma: m.turma, temas: TEMAS, relatorio: m.estado.relatorio ? { geradoEm: m.estado.relatorio.em, modelo: m.estado.relatorio.modelo } : null });
+    // quantas avaliações de cada P entram neste fechamento
+    const contagem = Object.fromEntries(ORDEM_P.map((id) => {
+      const t = c.bases[id].turmas.find((x) => x.id === m.estado.mapa[id]);
+      return [id, { turma: t ? t.nome : '', avaliacoes: t ? (t.avaliacoes || []).length : 0, consideradas: m.alunos.filter((a) => a.ps[id]).length }];
+    }));
+    res.json({ chave: req.params.chave, nome: m.estado.nome, mapa: m.estado.mapa, contagem, opcoes: dados.opcoesPorP(c.bases), sugestoesNovas: novas, status: m.status, alunos, duplicadas: m.duplicadas, turma: m.turma, temas: TEMAS, relatorio: m.estado.relatorio ? { geradoEm: m.estado.relatorio.em, modelo: m.estado.relatorio.modelo } : null });
   } catch (e) { erro(res, e); }
 });
 
