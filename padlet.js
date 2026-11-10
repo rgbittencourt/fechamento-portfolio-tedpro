@@ -56,6 +56,44 @@ async function lerPelaApi(url) {
   return r.json();
 }
 
+// Lê um Padlet PÚBLICO (visível para quem tem o link) sem conta paga: usa os mesmos endereços que a
+// própria página do Padlet usa para mostrar os posts. Se o Padlet for privado ou o Padlet mudar esses
+// endereços, a leitura falha com uma mensagem clara e a conferência pode ser feita pelo Claude.
+const CABECALHOS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', Accept: 'application/json, text/html;q=0.9', 'Accept-Language': 'pt-BR,pt;q=0.9' };
+async function lerPublico(url, { buscar = fetch } = {}) {
+  const u = String(url || '').trim().split('#')[0];
+  if (!/^https?:\/\/([a-z0-9-]+\.)?padlet\.com\//i.test(u)) throw new Error('O link não é de um Padlet.');
+  const pagina = await buscar(u, { headers: { ...CABECALHOS, Accept: 'text/html' }, redirect: 'follow' });
+  if (!pagina.ok) throw new Error(`O Padlet respondeu ${pagina.status} ao abrir a página.`);
+  const html = await pagina.text();
+  const hashid = (html.match(/board_([A-Za-z0-9]{8,})/) || [])[1];
+  if (!hashid) throw new Error('Não encontrei o mural nesta página: o Padlet pode ser privado ou pedir senha.');
+  const titulo = semHtml((html.match(/<title>([^<]*)<\/title>/i) || [])[1] || '');
+  const descricao = semHtml((html.match(/property="og:description" content="([^"]*)"/i) || [])[1] || '');
+  const base = 'https://padlet.com/api';
+  const posts = []; let inicio = ''; const vistos = new Set();
+  for (let i = 0; i < 20; i++) {
+    const r = await buscar(`${base}/10/wishes?wall_hashid=${hashid}&page_start=${encodeURIComponent(inicio)}`, { headers: CABECALHOS });
+    if (!r.ok) throw new Error(`O Padlet não liberou os posts (${r.status}): ele pode ser privado.`);
+    const j = await r.json();
+    for (const d of j.data || []) {
+      const a = d.attributes || {}; if (vistos.has(a.id)) continue; vistos.add(a.id);
+      if (a.published === false) continue;
+      posts.push({ secao: String(a.wall_section_id || ''), titulo: semHtml(a.subject || a.headline || ''), texto: semHtml(a.body || ''), anexo: a.attachment || a.attachment_link?.canonical_url || '', publicadoEm: a.created_at || '', atualizadoEm: a.content_updated_at || a.updated_at || '', wallId: a.wall_id });
+    }
+    const prox = j.meta?.next;
+    if (!prox || prox === inicio) break;
+    inicio = typeof prox === 'string' && prox.includes('page_start=') ? new URL(prox, base).searchParams.get('page_start') : String(prox);
+  }
+  let secoes = [];
+  const wallId = posts.find((x) => x.wallId)?.wallId;
+  if (wallId) {
+    const r = await buscar(`${base}/5/wall_sections?wall_id=${wallId}&`, { headers: CABECALHOS });
+    if (r.ok) secoes = ((await r.json()).data || []).map((s) => ({ id: String(s.attributes?.id ?? s.id), titulo: s.attributes?.title || '' }));
+  }
+  return { titulo, descricao, secoes, posts: posts.map(({ wallId: _w, ...x }) => x), lidoEm: new Date().toISOString(), origem: 'padlet-publico' };
+}
+
 // Compara o Padlet com as entregas avaliadas.
 function verificar(bruto, aluno, fatos) {
   const pad = padronizar(bruto);
@@ -176,4 +214,4 @@ function sinaisMidia(av, versao, campoLink) {
   return { linkAvaliado, dataAvaliacao, duracaoAvaliada: av.textos.videoDuracao?.texto || av.textos.duracao?.texto || '', noPadlet: [...midias.map((l) => ({ link: l.url, publicadoEm: l.publicadoEm })), ...arquivos.map((f) => ({ arquivo: f.nome, bytes: f.bytes || null, publicadoEm: f.modificadoEm || f.publicadoEm }))], mesmoLink: Boolean(mesmoLink), publicadoDepois: Boolean(publicadoDepois), conclusao };
 }
 
-module.exports = { sinaisMidia, verificar, padronizar, lerPelaApi, pDoTitulo, postsPorP, lerVersoes, apiConfigurada: () => Boolean(API_KEY) };
+module.exports = { lerPublico, sinaisMidia, verificar, padronizar, lerPelaApi, pDoTitulo, postsPorP, lerVersoes, apiConfigurada: () => Boolean(API_KEY) };

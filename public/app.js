@@ -93,13 +93,27 @@
   function cardPadlet(t) {
     const n = t.alunos.length, cont = (fn) => t.alunos.filter(fn).length;
     const comLink = cont((a) => a.padlet?.url), conf = cont((a) => a.padlet?.conferido), lidas = cont((a) => a.padletLido), corr = cont((a) => a.correcoes), finais = cont((a) => a.dossie?.etapa === 'final');
-    const etapas = [['Links dos Padlets salvos', comLink, 'Importe o TXT (baixe o modelo com os nomes já preenchidos e só cole os links).'], ['Padlets conferidos', conf, `Peça ao Claude: “confere o Padlet da turma ${t.nome}”. Ele lê cada Padlet e envia para cá.`], ['Versões finais lidas (PDFs, vídeos, áudios)', lidas, 'Acontece junto com a conferência.'], ['Correções verificadas', corr, 'Acontece ao gerar o dossiê depois da conferência.'], ['Dossiês na versão final', finais, 'Use “Gerar dossiês dos que completaram” depois da conferência.']];
+    const etapas = [['Links dos Padlets salvos', comLink, 'Importe o TXT (baixe o modelo com os nomes já preenchidos e só cole os links).'], ['Padlets conferidos', conf, 'Automático ao importar a lista. Use “Conferir os Padlets agora” para repetir. Padlets privados: peça ao Claude.'], ['Versões finais lidas (PDFs, vídeos, áudios)', lidas, 'Acontece junto com a conferência.'], ['Correções verificadas', corr, 'Acontece ao gerar o dossiê depois da conferência.'], ['Dossiês na versão final', finais, 'Use “Gerar dossiês dos que completaram” depois da conferência.']];
     const semLink = t.alunos.filter((a) => !a.padlet?.url).map((a) => a.nome);
     return `<div class="card"><h2>Conferência do Padlet ${comLink === n && finais === n ? '<span class="tag ok">concluída</span>' : '<span class="tag neutra">em preparação</span>'}</h2>
       <div class="hint">As correções dos estudantes aparecem só no Padlet. Depois da conferência, cada dossiê passa a usar as versões do Padlet como produtos finais e confere, indicação por indicação, o que foi corrigido.</div>
       <table style="margin-top:8px"><tbody>${etapas.map(([r, v, dica]) => `<tr><td><b>${r}</b></td><td style="width:140px"><div class="barra-prog"><span style="width:${n ? Math.round((v / n) * 100) : 0}%"></span></div></td><td style="width:70px;text-align:right"><b>${v}</b> de ${n}</td><td class="hint">${v < n ? dica : '✔'}</td></tr>`).join('')}</tbody></table>
       ${semLink.length && semLink.length < n ? `<div class="hint" style="margin-top:6px"><b>Sem link:</b> ${semLink.map(esc).join(', ')}</div>` : ''}
-      <div class="barra-ferr no-print"><button class="btn sec peq" id="modeloPadlet">⬇ Baixar modelo da lista (nomes já preenchidos)</button></div></div>`;
+      <div class="barra-ferr no-print"><button class="btn sec peq" id="modeloPadlet">⬇ Baixar modelo da lista (nomes já preenchidos)</button>${comLink ? `<button class="btn peq" id="conferirPadlets">🔎 Conferir os Padlets agora (${comLink})</button>` : ''}</div><div id="statusConf" class="status"></div><div class="progresso oculto" id="progConf"><span></span></div></div>`;
+  }
+  // Lê cada Padlet (público) no servidor, um estudante por vez, com barra de progresso.
+  async function conferirPadlets(chave, alunos, status, prog) {
+    const falhas = []; let ok = 0;
+    prog?.classList.remove('oculto');
+    for (const [i, a] of alunos.entries()) {
+      status.textContent = `Lendo o Padlet de ${a.nome} (${i + 1} de ${alunos.length})… os PDFs anexados também são lidos.`;
+      if (prog) prog.firstElementChild.style.width = `${Math.round((i / alunos.length) * 100)}%`;
+      try { const r = await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(a.chave)}/padlet`, { method: 'POST', body: JSON.stringify({ url: a.padlet.url }) }); if (r.verificacao) ok++; else falhas.push(`${a.nome}: ${r.aviso || 'sem conteúdo'}`); }
+      catch (e) { falhas.push(`${a.nome}: ${e.message}`); }
+    }
+    if (prog) prog.firstElementChild.style.width = '100%';
+    status.innerHTML = `${ok} de ${alunos.length} Padlet(s) conferidos.${falhas.length ? `<br><b>Não deu para ler:</b> ${falhas.map(esc).join('<br>')}` : ''}${ok ? '<br>Agora use “Gerar dossiês dos que completaram” para sair na versão final.' : ''}`;
+    await new Promise((r) => setTimeout(r, falhas.length ? 6000 : 2500));
   }
   async function telaTurma(chave, atualizar = false) {
     app.innerHTML = '<div class="card">Cruzando as P1 a P6 da turma…</div>';
@@ -139,6 +153,7 @@
     $('#salvarMapa').onclick = () => salvarMapa(Object.fromEntries(PS.map((p) => [p, $(`#mapa_${p}`).value])));
     if ($('#ligarNovas')) $('#ligarNovas').onclick = () => salvarMapa({ ...t.mapa, ...t.sugestoesNovas });
     $('#excluirFech').onclick = () => excluirFechamento(chave, t.nome);
+    if ($('#conferirPadlets')) $('#conferirPadlets').onclick = async () => { $('#conferirPadlets').disabled = true; await conferirPadlets(chave, t.alunos.filter((x) => x.padlet?.url), $('#statusConf'), $('#progConf')); telaTurma(chave); };
     $('#modeloPadlet').onclick = () => {
       const txt = ['# Lista de Padlets · ' + t.nome, '# Cole o link do Padlet depois do ponto e vírgula de cada estudante e importe este arquivo.', ...t.alunos.map((a) => `${a.nome} ; ${a.padlet?.url || ''}`)].join('\n');
       const url = URL.createObjectURL(new Blob([txt], { type: 'text/plain;charset=utf-8' }));
@@ -154,8 +169,10 @@
       if (!itens.length) { $('#statusLote').textContent = 'Não encontrei linhas com nome e link do Padlet no arquivo.'; return; }
       try {
         const r = await api(`/api/turmas/${encodeURIComponent(chave)}/padlet-lote`, { method: 'POST', body: JSON.stringify({ itens }) });
-        $('#statusLote').textContent = `${r.feitos.length} link(s) de Padlet salvos.${r.naoEncontrados.length ? ` Não encontrei na turma: ${r.naoEncontrados.join(', ')}.` : ''} Agora peça ao Claude: “confere o Padlet da turma ${t.nome}”.`;
-        setTimeout(() => telaTurma(chave), 2500);
+        $('#statusLote').textContent = `${r.feitos.length} link(s) de Padlet salvos.${r.naoEncontrados.length ? ` Não encontrei na turma: ${r.naoEncontrados.join(', ')}.` : ''} Começando a conferência…`;
+        const t2 = await api(`/api/turmas/${encodeURIComponent(chave)}`);
+        await conferirPadlets(chave, t2.alunos.filter((x) => x.padlet?.url), $('#statusLote'), $('#progLote'));
+        telaTurma(chave);
       } catch (e) { $('#statusLote').textContent = e.message; }
       ev.target.value = '';
     };

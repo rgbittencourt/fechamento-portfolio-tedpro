@@ -136,11 +136,15 @@ app.post('/api/turmas/:chave/alunos/:aluno/padlet', async (req, res) => {
     const { aluno, fatos } = dadosDoAluno(m, req.params.aluno);
     const url = String(req.body?.url || m.estado.padlet?.[aluno.chave]?.url || '').trim();
     let bruto = req.body?.conteudo || null;
-    if (!bruto && url && padlet.apiConfigurada()) bruto = await padlet.lerPelaApi(url);
+    let avisoLeitura = '';
+    if (!bruto && url) {
+      try { bruto = padlet.apiConfigurada() ? await padlet.lerPelaApi(url) : await padlet.lerPublico(url); }
+      catch (e) { avisoLeitura = `Link salvo, mas não consegui ler o Padlet: ${e.message} Peça ao estudante para deixar o Padlet visível para quem tem o link, ou peça ao Claude para conferir.`; }
+    }
     const verificacao = bruto ? padlet.verificar(bruto, aluno, fatos) : null;
     const versoes = bruto ? await padlet.lerVersoes(padlet.postsPorP(bruto)) : null;
     await db.alterarTurma(req.params.chave, (t) => { const antes = t.padlet[aluno.chave] || {}; t.padlet[aluno.chave] = { url, verificacao: verificacao || antes.verificacao || null, versoes: versoes || antes.versoes || null, em: verificacao ? new Date().toISOString() : (antes.em || '') }; });
-    res.json({ url, verificacao, aviso: !bruto && url ? (padlet.apiConfigurada() ? '' : 'Link salvo. Para conferir o conteúdo, configure PADLET_API_KEY ou importe a leitura do Padlet.') : '' });
+    res.json({ url, verificacao, lidas: versoes ? Object.keys(versoes).length : 0, aviso: avisoLeitura });
   } catch (e) { erro(res, e); }
 });
 // Importa a conferência de vários Padlets de uma vez: [{aluno|nome, url, conteudo}]
