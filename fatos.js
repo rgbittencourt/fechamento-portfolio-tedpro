@@ -178,6 +178,9 @@ function fatosTurma(alunos, contexto, fatosPorAluno) {
   } }
   const criterios = Object.values(crit).filter((c) => c.n >= 2).map((c) => ({ ...c, pct: Math.round((c.soma / c.n) * 100) })).map(({ soma, ...c }) => c);
   const frageis = [...criterios].sort((a, b) => a.pct - b.pct).slice(0, 8);
+  // critério mais frágil de cada P (para o ranking de dificuldade das Ps)
+  const piorCriterioPorP = {};
+  for (const c of criterios) if (!piorCriterioPorP[c.p] || c.pct < piorCriterioPorP[c.p].pct) piorCriterioPorP[c.p] = { criterio: c.criterio, pct: c.pct };
   const fortes = [...criterios].sort((a, b) => b.pct - a.pct).slice(0, 8);
   // alertas mais frequentes (texto normalizado)
   const alertas = {};
@@ -210,7 +213,7 @@ function fatosTurma(alunos, contexto, fatosPorAluno) {
   for (const f of fatosPorAluno) for (const p of f.superados) superadosTurma[p.tema] = (superadosTurma[p.tema] || 0) + 1;
   return {
     alunos: n, completos, funil, paradas, estatPorP: contexto.estatPorP, mediaGeral: contexto.mediaGeral, mediaGeralEntregues: contexto.mediaGeralEntregues, perfis, temasFracos, temas: contexto.temasTurma,
-    criteriosFrageis: frageis, criteriosFortes: fortes, alertasFrequentes, correlacoes: correlacoes.slice(0, 6), iaPorP,
+    criteriosFrageis: frageis, criteriosFortes: fortes, piorCriterioPorP, alertasFrequentes, correlacoes: correlacoes.slice(0, 6), iaPorP,
     comDeriva, comMudancaPublico, emAtencao, destaques,
     melhoraram: tendencias.filter((f) => f.tendencia >= 0.3).length, pioraram: tendencias.filter((f) => f.tendencia <= -0.3).length, estaveis: tendencias.filter((f) => Math.abs(f.tendencia) < 0.3).length,
     persistentesTurma, superadosTurma
