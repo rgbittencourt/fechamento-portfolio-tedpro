@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const APP_USERNAME = process.env.APP_USERNAME || 'professor';
 const APP_PASSWORD = process.env.APP_PASSWORD || '';
-const VERSAO_PROMPT = 'v3';
+const VERSAO_PROMPT = 'v4';
 if (process.env.NODE_ENV === 'production' && !APP_PASSWORD) throw new Error('APP_PASSWORD é obrigatória em produção.');
 
 app.use((req, res, next) => {
@@ -63,7 +63,7 @@ function resumoAluno(a, f, estado) {
   const pad = estado.padlet?.[a.chave];
   return {
     chave: a.chave, nome: a.nome, matricula: a.matricula, entregues: a.entregues, faltam: a.faltam, completo: a.completo,
-    juncao: a.juncao, notas: f.notas, media: f.mediaAluno, tendencia: f.tendencia, derivas: f.derivas, reformulacoes: f.reformulacoes,
+    juncao: a.juncao, notas: f.notas, media: f.mediaAluno, mediaEntregues: f.mediaEntregues, perfil: f.perfil.rotulo, tendencia: f.tendencia, derivas: f.derivas, reformulacoes: f.reformulacoes,
     padlet: pad ? { url: pad.url || '', conferido: Boolean(pad.verificacao), faltamNoPadlet: pad.verificacao?.faltamNoPadlet || [], em: pad.em || '' } : null,
     dossie: d ? { geradoEm: d.em, modelo: d.modelo, etapa: d.etapa || 'preliminar', desatualizado: false } : null,
     correcoes: estado.correcoes?.[a.chave]?.conteudo ? { taxa: estado.correcoes[a.chave].conteudo.taxa, conta: estado.correcoes[a.chave].conteudo.conta } : null,
@@ -236,7 +236,7 @@ app.get('/api/turmas/:chave/relatorio', async (req, res) => {
       const verif = soma('corrigido') + soma('parcial') + soma('nao_corrigido');
       return [id, { alunos: lista.length, corrigido: soma('corrigido'), parcial: soma('parcial'), nao_corrigido: soma('nao_corrigido'), nova_versao: soma('nova_versao'), nao_verificavel: soma('nao_verificavel'), taxa: verif ? Math.round(((soma('corrigido') + soma('parcial') * 0.5) / verif) * 100) : null }];
     }));
-    res.json({ nome: m.estado.nome, correcoesPorP, turma: m.turma, temas: TEMAS, mediaPorP: m.contexto.mediaPorP, matriz: m.alunos.map((a) => ({ nome: a.nome, notas: m.fatos.find((f) => f.chave === a.chave).notas, completo: a.completo })), relatorio: m.estado.relatorio });
+    res.json({ nome: m.estado.nome, correcoesPorP, turma: m.turma, temas: TEMAS, mediaPorP: m.contexto.mediaPorP, matriz: m.alunos.map((a) => { const f = m.fatos.find((x) => x.chave === a.chave); return { nome: a.nome, notas: f.notas, completo: a.completo, media: f.mediaAluno, mediaEntregues: f.mediaEntregues, perfil: f.perfil.rotulo }; }), relatorio: m.estado.relatorio });
   } catch (e) { erro(res, e); }
 });
 app.post('/api/turmas/:chave/relatorio', async (req, res) => {
@@ -245,7 +245,7 @@ app.post('/api/turmas/:chave/relatorio', async (req, res) => {
     const m = await montarTurma(req.params.chave);
     const resumos = m.alunos.map((a) => {
       const f = m.fatos.find((x) => x.chave === a.chave); const d = m.estado.dossies?.[a.chave]?.conteudo;
-      return { nome: a.nome, entregues: a.entregues, notas: f.notas, media: f.mediaAluno, tendencia: f.tendencia, desafio: (a.ps.P1?.desafio || f.fioDesafio[0]?.desafio || '').slice(0, 260), publico: (f.publicos[0]?.publico || '').slice(0, 160), persistentes: f.persistentes.map((p) => p.tema), superados: f.superados.map((p) => p.tema), derivas: f.derivas, reformulacoes: f.reformulacoes, ia: f.iaSim, padletFaltando: m.estado.padlet?.[a.chave]?.verificacao?.faltamNoPadlet || null, correcoes: m.estado.correcoes?.[a.chave]?.conteudo ? { taxa: m.estado.correcoes[a.chave].conteudo.taxa, conta: m.estado.correcoes[a.chave].conteudo.conta, naoCorrigidas: Object.entries(m.estado.correcoes[a.chave].conteudo.porP).flatMap(([p, x]) => x.itens.filter((i) => i.status === 'nao_corrigido').map((i) => `${p}: ${i.indicacao}`)).slice(0, 5) } : null, sinteseDossie: d ? d.sintese.slice(0, 600) : null, verificacoes: d ? Object.fromEntries(Object.entries(d.verificacoes).map(([k, v]) => [k, v.resposta])) : null };
+      return { nome: a.nome, entregues: a.entregues, notas: f.notas, media: f.mediaAluno, mediaEntregues: f.mediaEntregues, perfil: f.perfil.rotulo, tendencia: f.tendencia, desafio: (a.ps.P1?.desafio || f.fioDesafio[0]?.desafio || '').slice(0, 260), publico: (f.publicos[0]?.publico || '').slice(0, 160), persistentes: f.persistentes.map((p) => p.tema), superados: f.superados.map((p) => p.tema), derivas: f.derivas, reformulacoes: f.reformulacoes, ia: f.iaSim, padletFaltando: m.estado.padlet?.[a.chave]?.verificacao?.faltamNoPadlet || null, correcoes: m.estado.correcoes?.[a.chave]?.conteudo ? { taxa: m.estado.correcoes[a.chave].conteudo.taxa, conta: m.estado.correcoes[a.chave].conteudo.conta, naoCorrigidas: Object.entries(m.estado.correcoes[a.chave].conteudo.porP).flatMap(([p, x]) => x.itens.filter((i) => i.status === 'nao_corrigido').map((i) => `${p}: ${i.indicacao}`)).slice(0, 5) } : null, sinteseDossie: d ? d.sintese.slice(0, 600) : null, verificacoes: d ? Object.fromEntries(Object.entries(d.verificacoes).map(([k, v]) => [k, v.resposta])) : null };
     });
     const hd = hash({ turma: m.turma, resumos, v: VERSAO_PROMPT });
     if (m.estado.relatorio && m.estado.relatorio.hashDados === hd && !req.body?.forcar) return res.json({ relatorio: m.estado.relatorio });

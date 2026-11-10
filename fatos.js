@@ -39,12 +39,26 @@ function temasDe(avs) {
   return out;
 }
 
+// Perfil da trajetória ao longo das Ps entregues (leitura pedagógica, sempre pela mesma regra).
+function perfilTrajetoria(n, med, tend, desvio, notas) {
+  if (n < 2 || med === null) return { chave: 'poucos_dados', rotulo: 'Poucos dados', descricao: 'Menos de duas Ps avaliadas.' };
+  if (med < 6) return { chave: 'baixo', rotulo: 'Desempenho baixo', descricao: 'Média das Ps entregues abaixo de 6: precisa de acompanhamento próximo antes da banca.' };
+  if (tend !== null && tend >= 0.3) return { chave: 'ascensao', rotulo: 'Em ascensão', descricao: 'Notas melhorando ao longo das Ps: sinal de aprendizagem e de uso dos feedbacks.' };
+  if (tend !== null && tend <= -0.3) return { chave: 'queda', rotulo: 'Em queda', descricao: 'Notas caindo ao longo das Ps: vale investigar sobrecarga, perda de foco no desafio ou dificuldade com os formatos finais.' };
+  if (desvio !== null && desvio >= 1.5) return { chave: 'irregular', rotulo: 'Irregular', descricao: 'Oscila bastante entre as Ps: domina alguns formatos e tem dificuldade em outros.' };
+  if (med >= 8.5) return { chave: 'consistente_alto', rotulo: 'Consistente e alto', descricao: 'Mantém bom desempenho em todas as Ps entregues.' };
+  return { chave: 'estavel', rotulo: 'Estável', descricao: 'Desempenho regular, sem grandes variações.' };
+}
+
 // ---------- aluno ----------
 function fatosAluno(aluno, contexto) {
   const avs = ORDEM_P.map((id) => aluno.ps[id]).filter(Boolean);
   const notas = Object.fromEntries(ORDEM_P.map((id) => [id, aluno.ps[id] ? r2(aluno.ps[id].total) : null]));
   const pres = ORDEM_P.filter((id) => notas[id] !== null);
-  const mediaAluno = r2(media(pres.map((id) => notas[id])));
+  // Média oficial do estudante: soma das notas dividida pelas 6 Ps (P não entregue conta zero).
+  const mediaAluno = r2(pres.reduce((s, id) => s + notas[id], 0) / ORDEM_P.length);
+  const mediaEntregues = r2(media(pres.map((id) => notas[id]))); // desempenho só nas Ps entregues
+  const desvio = pres.length >= 2 ? r2(Math.sqrt(media(pres.map((id) => (notas[id] - mediaEntregues) ** 2)))) : null;
   // tendência: inclinação da reta das notas ao longo das Ps entregues
   let tendencia = null;
   if (pres.length >= 3) {
@@ -117,7 +131,7 @@ function fatosAluno(aluno, contexto) {
   const pendentes = avs.filter((a) => !a.completa).map((a) => a.p);
   return {
     nome: aluno.nome, matricula: aluno.matricula, entregues: aluno.entregues, faltam: aluno.faltam, completo: aluno.completo,
-    notas, mediaAluno, mediaTurma: contexto.mediaGeral, comparacao, tendencia, melhor, pior,
+    notas, mediaAluno, mediaEntregues, desvio, perfil: perfilTrajetoria(pres.length, mediaEntregues, tendencia, desvio, notas), mediaTurma: contexto.mediaGeral, comparacao, tendencia, melhor, pior,
     temas, abaixo, persistentes, superados, quedas,
     fioDesafio, derivas, reformulacoes, publicos, mudancasPublico,
     ia, iaSim, iaProblemas, orientadores, linksPorP, cruzamentoLinksP6,
@@ -143,8 +157,10 @@ function contextoTurma(alunos) {
   }
   const todas = alunos.flatMap((a) => ORDEM_P.map((id) => a.ps[id]).filter(Boolean));
   const temasTurma = temasDe(todas);
-  const mediaGeral = r2(media(alunos.map((a) => media(ORDEM_P.map((id) => a.ps[id]?.total).filter(Number.isFinite)))));
-  return { mediaPorP, estatPorP, temasTurma, mediaGeral };
+  // média geral: média das médias oficiais dos estudantes (cada uma dividida pelas 6 Ps)
+  const mediaGeral = r2(media(alunos.map((a) => ORDEM_P.reduce((s, id) => s + (Number.isFinite(a.ps[id]?.total) ? a.ps[id].total : 0), 0) / ORDEM_P.length)));
+  const mediaGeralEntregues = r2(media(alunos.map((a) => media(ORDEM_P.map((id) => a.ps[id]?.total).filter(Number.isFinite)))));
+  return { mediaPorP, estatPorP, temasTurma, mediaGeral, mediaGeralEntregues };
 }
 
 function fatosTurma(alunos, contexto, fatosPorAluno) {
@@ -180,15 +196,20 @@ function fatosTurma(alunos, contexto, fatosPorAluno) {
   const comDeriva = fatosPorAluno.filter((f) => f.derivas.length).map((f) => ({ nome: f.nome, ps: f.derivas }));
   const comMudancaPublico = fatosPorAluno.filter((f) => f.mudancasPublico.length).map((f) => ({ nome: f.nome, ps: f.mudancasPublico }));
   const tendencias = fatosPorAluno.filter((f) => f.tendencia !== null);
-  const emAtencao = fatosPorAluno.filter((f) => (f.mediaAluno !== null && f.mediaAluno < 6) || (f.tendencia !== null && f.tendencia <= -0.5) || f.persistentes.length >= 3)
-    .map((f) => ({ nome: f.nome, media: f.mediaAluno, tendencia: f.tendencia, persistentes: f.persistentes.map((p) => p.tema) }));
+  // atenção e destaque olham o desempenho nas Ps entregues; a falta de entregas aparece à parte
+  const emAtencao = fatosPorAluno.filter((f) => (f.mediaEntregues !== null && f.mediaEntregues < 6) || (f.tendencia !== null && f.tendencia <= -0.5) || f.persistentes.length >= 3)
+    .map((f) => ({ nome: f.nome, media: f.mediaAluno, mediaEntregues: f.mediaEntregues, tendencia: f.tendencia, persistentes: f.persistentes.map((p) => p.tema), faltam: f.faltam }));
   const destaques = fatosPorAluno.filter((f) => f.completo && f.mediaAluno !== null && f.mediaAluno >= 9).map((f) => ({ nome: f.nome, media: f.mediaAluno }));
+  const perfis = {};
+  for (const f of fatosPorAluno) { perfis[f.perfil.chave] = perfis[f.perfil.chave] || { ...f.perfil, alunos: [] }; perfis[f.perfil.chave].alunos.push(f.nome); }
+  // temas em que a turma está abaixo do esperado, com os critérios que os compõem (para orientar intervenções)
+  const temasFracos = Object.entries(contexto.temasTurma).filter(([, v]) => v.pct < 75).map(([k, v]) => ({ tema: TEMAS[k], pct: v.pct, ps: v.ps }));
   const persistentesTurma = {};
   for (const f of fatosPorAluno) for (const p of f.persistentes) persistentesTurma[p.tema] = (persistentesTurma[p.tema] || 0) + 1;
   const superadosTurma = {};
   for (const f of fatosPorAluno) for (const p of f.superados) superadosTurma[p.tema] = (superadosTurma[p.tema] || 0) + 1;
   return {
-    alunos: n, completos, funil, paradas, estatPorP: contexto.estatPorP, mediaGeral: contexto.mediaGeral, temas: contexto.temasTurma,
+    alunos: n, completos, funil, paradas, estatPorP: contexto.estatPorP, mediaGeral: contexto.mediaGeral, mediaGeralEntregues: contexto.mediaGeralEntregues, perfis, temasFracos, temas: contexto.temasTurma,
     criteriosFrageis: frageis, criteriosFortes: fortes, alertasFrequentes, correlacoes: correlacoes.slice(0, 6), iaPorP,
     comDeriva, comMudancaPublico, emAtencao, destaques,
     melhoraram: tendencias.filter((f) => f.tendencia >= 0.3).length, pioraram: tendencias.filter((f) => f.tendencia <= -0.3).length, estaveis: tendencias.filter((f) => Math.abs(f.tendencia) < 0.3).length,

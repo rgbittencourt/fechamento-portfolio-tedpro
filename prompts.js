@@ -125,7 +125,14 @@ function montarPromptTurma(nomeTurma, fatosTurma, resumos) {
   return `Você apoia a coordenação da Especialização TEDPRO (IFSC) no fechamento do portfólio da turma "${nomeTurma}". Os estudantes fizeram seis entregas em torno de um mesmo desafio: P1 Descobrindo meu desafio, P2 Roteiro e vídeo, P3 Proposta formativa, P4 Podcast, P5 Agente de IA (Gem), P6 Relato de experiência.
 
 TAREFA
-Produza uma leitura de conjunto para os professores da banca e para a coordenação: insights, tendências, maiores problemas e maiores acertos da turma, relações entre as Ps e recomendações.
+Produza uma leitura de conjunto para os professores da banca e para a coordenação: insights, tendências, maiores problemas e maiores acertos da turma, relações entre as Ps e recomendações. Faça uma leitura PEDAGÓGICA: o que os números dizem sobre a aprendizagem da turma (formular um problema real, planejar uma formação, produzir mídia, testar com o público, refletir sobre a própria prática), em que momento do percurso as dificuldades aparecem e o que os orientadores podem fazer a respeito antes da banca.
+
+COMO OS DADOS FORAM CALCULADOS
+- Notas de 0 a 10 em cada P. A média da turma em cada P considera só quem entregou. A média oficial de cada estudante soma as notas e divide pelas 6 Ps (P não entregue conta zero); "mediaEntregues" é a média só das Ps entregues.
+- Temas: cada critério das rubricas foi agrupado num tema (desafio e público; fundamentação; planejamento pedagógico; tecnologias digitais; produção e linguagem midiática; teste, análise e reflexão; forma da entrega; transparência no uso de IA). O percentual é a soma dos pontos obtidos sobre o máximo possível, juntando todas as Ps.
+- Tema persistente: abaixo de 75% em duas ou mais Ps do mesmo estudante. Tema superado: abaixo de 75% em P1 a P3 e acima de 85% em todas de P4 a P6.
+- Correlação (r de Pearson) entre as notas de duas Ps: perto de 1, quem vai bem numa vai bem na outra; perto de 0, sem relação; negativa, relação inversa.
+- Perfis de trajetória: baixo (média das entregues < 6), em ascensão ou em queda (tendência das notas), irregular (desvio alto), consistente e alto, estável.
 
 REGRAS
 - Use os FATOS DA TURMA como base exata (médias, funil de entregas, critérios mais frágeis e mais fortes, correlações, temas). Não recalcule nem contradiga.
@@ -152,7 +159,10 @@ Responda APENAS em JSON válido:
 "alunos_atencao":[{"nome":"","motivo":""}],
 "destaques":[{"nome":"","motivo":""}],
 "recomendacoes_banca":[""],
-"recomendacoes_proxima_oferta":[""]}`;
+"recomendacoes_proxima_oferta":[""],
+"leitura_pedagogica":"2 a 3 parágrafos: o que o conjunto revela sobre a aprendizagem da turma ao longo do percurso de P1 a P6, onde estão as dificuldades conceituais (não só de forma) e o que isso pede da orientação",
+"leitura_perfis":"um parágrafo interpretando a distribuição dos perfis de trajetória e o que cada grupo precisa",
+"acoes_orientacao":[{"acao":"","para_quem":"","por_que":""}]}`;
 }
 
 // Padroniza a saída do dossiê (listas, valores permitidos, sem travessão).
@@ -191,7 +201,9 @@ function limparTurma(r = {}) {
     relacoes_entre_ps: itens(r.relacoes_entre_ps), perfil_dos_desafios: t(r.perfil_dos_desafios),
     alunos_atencao: lista(r.alunos_atencao).map((x) => ({ nome: t(x.nome), motivo: t(x.motivo) })).filter((x) => x.nome),
     destaques: lista(r.destaques).map((x) => ({ nome: t(x.nome), motivo: t(x.motivo) })).filter((x) => x.nome),
-    recomendacoes_banca: lista(r.recomendacoes_banca).map(t).filter(Boolean), recomendacoes_proxima_oferta: lista(r.recomendacoes_proxima_oferta).map(t).filter(Boolean)
+    recomendacoes_banca: lista(r.recomendacoes_banca).map(t).filter(Boolean), recomendacoes_proxima_oferta: lista(r.recomendacoes_proxima_oferta).map(t).filter(Boolean),
+    leitura_pedagogica: t(r.leitura_pedagogica), leitura_perfis: t(r.leitura_perfis),
+    acoes_orientacao: lista(r.acoes_orientacao).map((x) => ({ acao: t(x.acao), para_quem: t(x.para_quem), por_que: t(x.por_que) })).filter((x) => x.acao)
   };
 }
 

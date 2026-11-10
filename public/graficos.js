@@ -53,9 +53,10 @@
   // Mapa de calor: alunos x Ps.
   function mapaCalor(matriz) {
     const ps = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'];
-    return `<table class="calor"><thead><tr><th>Estudante</th>${ps.map((p) => `<th>${p}</th>`).join('')}<th>Média</th></tr></thead><tbody>${matriz.map((l) => {
-      const v = ps.map((p) => l.notas[p]).filter((x) => x !== null && x !== undefined); const med = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-      return `<tr><td>${esc(l.nome)}${l.completo ? '' : ' <span class="tag-inc">incompleto</span>'}</td>${ps.map((p) => `<td style="background:${corNota(l.notas[p])};color:${l.notas[p] === null || l.notas[p] === undefined ? '#8a98a3' : '#fff'}">${fmt(l.notas[p])}</td>`).join('')}<td><b>${fmt(med)}</b></td></tr>`;
+    return `<table class="calor"><thead><tr><th>Estudante</th>${ps.map((p) => `<th>${p}</th>`).join('')}<th title="Soma das notas dividida pelas 6 Ps (P não entregue conta zero)">Média (÷6)</th><th title="Média só das Ps entregues">Média das entregues</th></tr></thead><tbody>${matriz.map((l) => {
+      const soma = ps.reduce((s, p) => s + (l.notas[p] === null || l.notas[p] === undefined ? 0 : l.notas[p]), 0); const med = soma / 6;
+      const ent = ps.map((p) => l.notas[p]).filter((x) => x !== null && x !== undefined); const medEnt = ent.length ? ent.reduce((a, b) => a + b, 0) / ent.length : null;
+      return `<tr><td>${esc(l.nome)}${l.completo ? '' : ' <span class="tag-inc">incompleto</span>'}</td>${ps.map((p) => `<td style="background:${corNota(l.notas[p])};color:${l.notas[p] === null || l.notas[p] === undefined ? '#8a98a3' : '#fff'}">${fmt(l.notas[p])}</td>`).join('')}<td><b>${fmt(med)}</b></td><td>${fmt(medEnt)}</td></tr>`;
     }).join('')}</tbody></table><div class="legenda-calor">${[['< 6', '#C0504D'], ['6 a 6,9', '#E2B33C'], ['7 a 7,9', '#A8C66C'], ['8 a 8,9', '#58A06C'], ['9 a 10', '#1E8449'], ['não entregou', '#e8edf1']].map(([t, c]) => `<span><i style="background:${c}"></i>${t}</span>`).join('')}</div>`;
   }
 
@@ -67,7 +68,7 @@
   // Médias por P (colunas) com mínimo e máximo.
   function colunasPorP(estat) {
     const ps = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'];
-    return `<div class="funil">${ps.map((p) => { const e = estat[p] || {}; return `<div class="etapa" title="mín. ${fmt(e.min)} · máx. ${fmt(e.max)} · mediana ${fmt(e.mediana)}"><div class="col" style="height:${Math.max(4, ((e.media || 0) / 10) * 120)}px;background:${corNota(e.media)}"></div><b>${fmt(e.media)}</b><span>${p}</span></div>`; }).join('')}</div>`;
+    return `<div class="funil">${ps.map((p) => { const e = estat[p] || {}; return `<div class="etapa" title="mín. ${fmt(e.min)} · máx. ${fmt(e.max)} · mediana ${fmt(e.mediana)}"><div class="col" style="height:${Math.max(4, ((e.media || 0) / 10) * 120)}px;background:${corNota(e.media)}"></div><b>${fmt(e.media)}</b><span>${p}</span><span style="display:block;font-size:.7rem">${e.entregas ? `${e.entregas} entrega(s)` : 'sem entregas'}</span></div>`; }).join('')}</div>`;
   }
 
   window.Graficos = { linhaNotas, radar, barras, mapaCalor, funil, colunasPorP, corNota, fmt };
