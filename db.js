@@ -49,7 +49,11 @@ function alterarTurma(chave, fn) {
   fila = tarefa;
   return tarefa;
 }
+async function excluirTurma(chave) {
+  const tarefa = fila.catch(() => {}).then(async () => { const base = await ler(); delete base.turmas[chave]; await gravar(base); });
+  fila = tarefa; return tarefa;
+}
 async function lerTurma(chave) { const base = await ler(); return base.turmas[chave] || null; }
 async function listar() { const base = await ler(); return Object.entries(base.turmas).map(([chave, t]) => ({ chave, nome: t.nome || chave, mapa: t.mapa, atualizadaEm: t.atualizadaEm || '' })); }
 
-module.exports = { lerTurma, alterarTurma, listar, statusBackup: () => githubBackup.status(), usaPostgres: () => Boolean(pool) };
+module.exports = { excluirTurma, lerTurma, alterarTurma, listar, statusBackup: () => githubBackup.status(), usaPostgres: () => Boolean(pool) };

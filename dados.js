@@ -26,7 +26,13 @@ async function buscarBase(id) {
   }
   if (!r.ok) throw new Error(`GitHub respondeu ${r.status} para ${P[id].repo}`);
   const texto = await r.text();
-  return JSON.parse(texto);
+  const base = JSON.parse(texto);
+  // data do último backup desse arquivo no GitHub (para avisar quando os dados de uma P estão parados)
+  try {
+    const c = await fetch(`https://api.github.com/repos/${encodeURIComponent(OWNER)}/${encodeURIComponent(P[id].repo)}/commits?path=${encodeURIComponent(CAMINHO)}&per_page=1`, { headers: { Authorization: `Bearer ${TOKEN}`, 'User-Agent': 'fechamento-portfolio-tedpro' } });
+    if (c.ok) { const j = await c.json(); base.__atualizadoEm = j[0]?.commit?.committer?.date || ''; }
+  } catch {}
+  return base;
 }
 
 // Lê as seis bases (com cache de 10 minutos, ou forçando a atualização).
@@ -37,7 +43,7 @@ async function carregarBases(forcar = false) {
     try {
       const b = await buscarBase(id);
       bases[id] = Array.isArray(b?.turmas) ? b : { turmas: [] };
-      status[id] = { ok: true, turmas: bases[id].turmas.length, avaliacoes: bases[id].turmas.reduce((s, t) => s + (t.avaliacoes || []).length, 0) };
+      status[id] = { ok: true, atualizadoEm: b?.__atualizadoEm || '', turmas: bases[id].turmas.length, avaliacoes: bases[id].turmas.reduce((s, t) => s + (t.avaliacoes || []).length, 0) };
     } catch (e) { bases[id] = { turmas: [] }; status[id] = { ok: false, erro: e.message }; }
   }));
   cache = { em: Date.now(), bases, status };
@@ -132,4 +138,4 @@ function juntarAlunos(bases, mapa, vinculos = {}) {
   return { alunos, duplicadas };
 }
 
-module.exports = { carregarBases, listarTurmas, sugerirTurmas, juntarAlunos, normNome, nomesParecidos, normTurma, statusFonte: () => ({ token: Boolean(TOKEN), local: Boolean(DADOS_LOCAIS) }) };
+module.exports = { opcoesPorP: (bases) => Object.fromEntries(ORDEM_P.map((id) => [id, bases[id].turmas.map((t) => ({ id: t.id, nome: t.nome, quantidade: (t.avaliacoes || []).length }))])), carregarBases, listarTurmas, sugerirTurmas, juntarAlunos, normNome, nomesParecidos, normTurma, statusFonte: () => ({ token: Boolean(TOKEN), local: Boolean(DADOS_LOCAIS) }) };

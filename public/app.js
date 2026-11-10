@@ -34,7 +34,7 @@
   async function telaInicio() {
     app.innerHTML = '<div class="card">Buscando os dados das P1 a P6…</div>';
     const f = await api('/api/fontes');
-    const fontes = PS.map((p) => { const s = f.status[p] || {}; return `<span class="fonte ${s.ok ? 'ok' : 'erro'}" title="${esc(s.repo)}${s.erro ? ': ' + esc(s.erro) : ''}"><b>${p}</b> ${s.ok ? `${s.turmas} turma(s) · ${s.avaliacoes} avaliação(ões)` : 'sem acesso'}</span>`; }).join('');
+    const fontes = PS.map((p) => { const s = f.status[p] || {}; return `<span class="fonte ${s.ok ? 'ok' : 'erro'}" title="${esc(s.repo)}${s.erro ? ': ' + esc(s.erro) : ''}"><b>${p}</b> ${s.ok ? `${s.turmas} turma(s) · ${s.avaliacoes} avaliação(ões)${s.atualizadoEm ? ` · GitHub ${dataCurta(s.atualizadoEm)}` : ''}` : 'sem acesso'}</span>`; }).join('');
     const opcoes = (p) => `<option value="">(não usar)</option>` + f.turmas.filter((t) => t.ps[p]).map((t) => `<option value="${esc(t.ps[p].id)}">${esc(t.ps[p].nome)} (${t.ps[p].quantidade})</option>`).join('');
     app.innerHTML = `
       <div class="card"><h2>Abrir o fechamento de uma turma</h2>
@@ -44,9 +44,10 @@
         <label for="nomeTurma">Nome do fechamento</label><input type="text" id="nomeTurma" style="max-width:340px">
         <div class="barra-ferr"><button class="btn ouro" id="abrir">Abrir fechamento</button></div></div>
         <div id="statusAbrir" class="status"></div></div>
-      ${f.abertas.length ? `<div class="card"><h2>Fechamentos já abertos</h2><table><thead><tr><th>Turma</th><th>Ps ligadas</th><th>Atualizado</th><th></th></tr></thead><tbody>${f.abertas.map((t) => `<tr><td><b>${esc(t.nome)}</b></td><td>${PS.filter((p) => t.mapa?.[p]).join(', ') || '—'}</td><td>${t.atualizadaEm ? new Date(t.atualizadaEm).toLocaleDateString('pt-BR') : ''}</td><td><a class="btn peq" href="#/turma/${encodeURIComponent(t.chave)}">Abrir</a></td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${f.abertas.length ? `<div class="card"><h2>Fechamentos já abertos</h2><table><thead><tr><th>Turma</th><th>Ps ligadas</th><th>Atualizado</th><th></th></tr></thead><tbody>${f.abertas.map((t) => `<tr><td><b>${esc(t.nome)}</b></td><td>${PS.filter((p) => t.mapa?.[p]).join(', ') || '—'}</td><td>${t.atualizadaEm ? new Date(t.atualizadaEm).toLocaleDateString('pt-BR') : ''}</td><td><a class="btn peq" href="#/turma/${encodeURIComponent(t.chave)}">Abrir</a> <button class="btn peq sec" data-excluir="${esc(t.chave)}" data-nome="${esc(t.nome)}">Excluir</button></td></tr>`).join('')}</tbody></table></div>` : ''}
       <div class="card"><h2>Dados das Ps <button class="btn sec peq no-print" id="atualizarFontes">↻ Atualizar do GitHub</button></h2><div class="fontes">${fontes}</div><div class="hint" style="margin-top:8px">Lidos em ${new Date(f.atualizadoEm).toLocaleString('pt-BR')}.</div></div>`;
     $('#atualizarFontes').onclick = async () => { await api('/api/fontes?atualizar=1'); telaInicio(); };
+    app.querySelectorAll('[data-excluir]').forEach((b) => (b.onclick = () => excluirFechamento(b.dataset.excluir, b.dataset.nome)));
     const procurar = async () => {
       const pedido = $('#pedido').value.trim(); if (!pedido) return;
       const { mapa } = await api('/api/turmas/sugerir', { method: 'POST', body: JSON.stringify({ pedido }) });
@@ -63,6 +64,13 @@
         location.hash = `#/turma/${encodeURIComponent(r.chave)}`;
       } catch (e) { $('#statusAbrir').textContent = e.message; }
     };
+  }
+
+  const dataCurta = (d) => { try { return new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+  async function excluirFechamento(chave, nome) {
+    if (!confirm(`Excluir o fechamento "${nome}"?\n\nSomem os dossiês e o relatório gerados, os links de Padlet e os ajustes de nomes. As avaliações das Ps não são afetadas, e você pode abrir o fechamento de novo depois.`)) return;
+    await api(`/api/turmas/${encodeURIComponent(chave)}`, { method: 'DELETE' });
+    location.hash = '#/'; telaInicio();
   }
 
   // ================= turma =================
@@ -88,13 +96,20 @@
         <div class="barra-ferr no-print"><a class="btn ouro" href="#/turma/${encodeURIComponent(chave)}/relatorio">📊 Relatório da turma</a><button class="btn" id="gerarTodos">✨ Gerar dossiês dos que completaram</button><button class="btn sec" id="atualizarDados">↻ Atualizar dados das Ps</button><label class="btn sec" for="listaPadlet" style="margin:0">📎 Importar lista de Padlets (TXT)</label><input type="file" id="listaPadlet" accept=".txt,.csv,text/plain" class="oculto"><a class="btn sec" href="#/">Trocar de turma</a></div>
         <div class="hint" style="margin-top:6px">Lista de Padlets: um estudante por linha, com o nome e o link (ex.: <code>Ana Paula Souza ; https://padlet.com/...</code>). A ordem e o separador não importam.</div>
         <div id="statusLote" class="status"></div><div class="progresso oculto" id="progLote"><span></span></div>
-        <div class="hint" style="margin-top:8px">Ps ligadas: ${PS.map((p) => `${p} ${t.mapa[p] ? '✔' : '✘'}`).join(' · ')}</div></div>
+        ${Object.keys(t.sugestoesNovas || {}).length ? `<div class="aviso-box" style="margin-top:10px">A turma <b>${esc(t.nome)}</b> agora existe também na <b>${Object.keys(t.sugestoesNovas).join(', ')}</b>. <button class="btn peq ouro" id="ligarNovas">Ligar ao fechamento</button></div>` : ''}
+        <details style="margin-top:10px" ${PS.some((p) => !t.mapa[p]) ? '' : ''}><summary class="hint" style="cursor:pointer"><b>Ps ligadas:</b> ${PS.map((p) => `${p} ${t.mapa[p] ? '✔' : '✘'}`).join(' · ')} · <u>editar</u></summary>
+          <div class="grade6" style="margin-top:8px">${PS.map((p) => { const s = t.status[p] || {}; return `<div><label for="mapa_${p}">${p} · ${NOMES_P[p]}</label><select id="mapa_${p}"><option value="">(não usar)</option>${(t.opcoes[p] || []).map((o) => `<option value="${esc(o.id)}" ${t.mapa[p] === o.id ? 'selected' : ''}>${esc(o.nome)} (${o.quantidade})</option>`).join('')}</select><div class="hint">${s.ok ? (s.atualizadoEm ? `Última cópia no GitHub: ${dataCurta(s.atualizadoEm)}` : 'Sem cópia no GitHub ainda') : 'Sem acesso ao repositório'}</div></div>`; }).join('')}</div>
+          <div class="barra-ferr"><button class="btn sec peq" id="salvarMapa">Salvar Ps ligadas</button><button class="btn sec peq" id="excluirFech" style="color:#8f2f26;border-color:#8f2f26">🗑 Excluir este fechamento</button></div></details></div>
       ${juncoesDuvidosas.length || t.duplicadas.length ? `<div class="card"><h2>Conferência dos nomes</h2>
         ${juncoesDuvidosas.map((x) => `<div class="aviso-box" style="margin-bottom:6px">Na ${x.p}, "<b>${esc(x.j.nomeNaP)}</b>"${x.j.matriculaNaP ? ` (matrícula ${esc(x.j.matriculaNaP)})` : ' (sem matrícula)'} foi ligado a <b>${esc(x.aluno.nome)}</b> pelo nome parecido. <button class="btn peq sec" data-desfazer="${x.p}|${esc(x.j.avaliacaoId)}">Não é a mesma pessoa</button></div>`).join('')}
         ${t.duplicadas.map((d) => `<div class="hint">Na ${d.p}, ${esc(d.aluno)} tinha duas avaliações; ficou a mais recente.</div>`).join('')}</div>` : ''}
       <div class="card"><h2>Completaram as seis Ps (${completos.length})</h2>${completos.length ? `<div style="overflow:auto"><table><thead><tr><th>Estudante</th><th>Notas P1 a P6</th><th>Média</th><th>Fio do desafio</th><th>Padlet</th><th>Dossiê</th><th></th></tr></thead><tbody>${completos.map(linha).join('')}</tbody></table></div>` : '<div class="vazio">Ninguém completou as seis Ps nesta turma ainda.</div>'}</div>
       ${incompletos.length ? `<div class="card"><h2>Ainda não completaram (${incompletos.length})</h2><div class="hint">Também é possível abrir o dossiê, com o que já foi entregue. Se alguém aparece aqui só porque o nome ou a matrícula não bateram, junte com o estudante certo.</div><div style="overflow:auto"><table><thead><tr><th>Estudante</th><th>Notas P1 a P6</th><th>Média</th><th>Fio do desafio</th><th>Padlet</th><th>Dossiê</th><th></th></tr></thead><tbody>${incompletos.map((a) => linha(a).replace('</td></tr>', `<div style="margin-top:6px"><select data-juntar="${esc(a.chave)}" class="no-print" style="font-size:.74rem;padding:4px"><option value="">Juntar com…</option>${t.alunos.filter((b) => b.chave !== a.chave).map((b) => `<option value="${esc(b.chave)}">${esc(b.nome)}</option>`).join('')}</select></div></td></tr>`)).join('')}</tbody></table></div></div>` : ''}`;
     $('#atualizarDados').onclick = () => telaTurma(chave, true);
+    const salvarMapa = async (mapa) => { await api(`/api/turmas/${encodeURIComponent(chave)}/mapa`, { method: 'PUT', body: JSON.stringify({ mapa }) }); telaTurma(chave, true); };
+    $('#salvarMapa').onclick = () => salvarMapa(Object.fromEntries(PS.map((p) => [p, $(`#mapa_${p}`).value])));
+    if ($('#ligarNovas')) $('#ligarNovas').onclick = () => salvarMapa({ ...t.mapa, ...t.sugestoesNovas });
+    $('#excluirFech').onclick = () => excluirFechamento(chave, t.nome);
     $('#listaPadlet').onchange = async (ev) => {
       const arq = ev.target.files[0]; if (!arq) return;
       const itens = (await arq.text()).split(/\r?\n/).map((l) => {

@@ -85,8 +85,26 @@ app.get('/api/turmas/:chave', async (req, res) => {
     const m = await montarTurma(req.params.chave, { forcar: req.query.atualizar === '1' });
     const alunos = m.alunos.map((a) => resumoAluno(a, m.fatos.find((f) => f.chave === a.chave), m.estado));
     for (const x of alunos) { const d = m.estado.dossies?.[x.chave]; if (d) x.dossie.desatualizado = d.hashDados !== hashDadosAluno(m, x.chave); }
-    res.json({ chave: req.params.chave, nome: m.estado.nome, mapa: m.estado.mapa, status: m.status, alunos, duplicadas: m.duplicadas, turma: m.turma, temas: TEMAS, relatorio: m.estado.relatorio ? { geradoEm: m.estado.relatorio.em, modelo: m.estado.relatorio.modelo } : null });
+    const c = await dados.carregarBases();
+    const sugestao = dados.sugerirTurmas(c.bases, m.estado.nome);
+    const novas = Object.fromEntries(ORDEM_P.filter((id) => !m.estado.mapa[id] && sugestao[id]).map((id) => [id, sugestao[id]]));
+    res.json({ chave: req.params.chave, nome: m.estado.nome, mapa: m.estado.mapa, opcoes: dados.opcoesPorP(c.bases), sugestoesNovas: novas, status: m.status, alunos, duplicadas: m.duplicadas, turma: m.turma, temas: TEMAS, relatorio: m.estado.relatorio ? { geradoEm: m.estado.relatorio.em, modelo: m.estado.relatorio.modelo } : null });
   } catch (e) { erro(res, e); }
+});
+
+// Troca as Ps ligadas ao fechamento (por exemplo, quando a turma passou a existir na P1 ou na P5).
+app.put('/api/turmas/:chave/mapa', async (req, res) => {
+  try {
+    const mapa = req.body?.mapa || {};
+    if (!Object.values(mapa).some(Boolean)) throw Object.assign(new Error('Escolha a turma em pelo menos uma P.'), { status: 400 });
+    const existe = await db.lerTurma(req.params.chave);
+    if (!existe) throw Object.assign(new Error('Fechamento não encontrado.'), { status: 404 });
+    await db.alterarTurma(req.params.chave, (t) => { t.mapa = Object.fromEntries(ORDEM_P.map((id) => [id, mapa[id] || ''])); t.atualizadaEm = new Date().toISOString(); });
+    res.json({ ok: true });
+  } catch (e) { erro(res, e); }
+});
+app.delete('/api/turmas/:chave', async (req, res) => {
+  try { await db.excluirTurma(req.params.chave); res.json({ ok: true }); } catch (e) { erro(res, e); }
 });
 
 // Vincula manualmente uma avaliação de uma P a um aluno (quando o nome ou a matrícula não bateram).
