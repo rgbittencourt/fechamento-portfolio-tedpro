@@ -203,6 +203,8 @@
   // ================= dossiê =================
   const ANGULOS = { fio_do_desafio: 'Fio do desafio', escrito_x_entregue: 'Escrito × entregue', evidencias: 'Evidências', escolhas: 'Escolhas pedagógicas e tecnológicas', aprendizagem: 'Aprendizagem', continuidade: 'Continuidade' };
   const ROT_CORR = { corrigido: ['✔ corrigido', 'ok'], parcial: ['◐ parcial', 'aviso'], nao_corrigido: ['✘ não corrigido', 'ruim'], nova_versao: ['↻ nova versão (conferir)', 'neutra'], nao_verificavel: ['não verificável', 'neutra'] };
+  // Link para abrir a avaliação de uma P no Avaliador correspondente.
+  const linkAvDe = (d, p, rotulo = '↗ avaliação') => { const l = d.linksAvaliacao?.[p]; return l ? `<a class="link-av no-print" href="${esc(l.url)}" target="_blank" rel="noopener" title="${l.direto ? `Abrir a avaliação da ${p} no Avaliador` : `Abrir o Avaliador da ${p} (procure o estudante na turma)`}">${rotulo}</a>` : ''; };
   // Correções pedidas pelo orientador × versão publicada no Padlet.
   function blocoCorrecoes(d) {
     const c = d.correcoes;
@@ -214,7 +216,7 @@
         const sm = c.sinaisMidia?.[p];
         const dt = (v) => v ? new Date(v).toLocaleDateString('pt-BR') : '?';
         const midia = sm ? `<div class="aviso-box" style="margin:6px 0"><b>${p === 'P2' ? 'Vídeo' : 'Podcast'}:</b> ${esc(sm.conclusao)}.<div class="hint">Avaliado: ${sm.linkAvaliado ? `<a href="${esc(sm.linkAvaliado)}" target="_blank" rel="noopener">${esc(sm.linkAvaliado)}</a>` : 'sem link'}${sm.duracaoAvaliada ? `, duração ${esc(sm.duracaoAvaliada)}` : ''}, avaliação de ${dt(sm.dataAvaliacao)}.${sm.noPadlet.length ? ` No Padlet: ${sm.noPadlet.map((m) => m.link ? `<a href="${esc(m.link)}" target="_blank" rel="noopener">${esc(m.link)}</a> (${dt(m.publicadoEm)})` : `${esc(m.arquivo)}${m.bytes ? ` · ${(m.bytes / 1048576).toFixed(1)} MB` : ''} (${dt(m.publicadoEm)})`).join('; ')}.` : ''}</div></div>` : '';
-        return `<h3>${p} · ${NOMES_P[p]} ${x.taxa !== null ? `<span class="hint">(${x.taxa}% atendidas)</span>` : ''}</h3>${midia}${fontes.length ? `<div class="hint">No Padlet: ${fontes.map((f) => `${esc(f.nome)} (${f.lido ? 'lido' : esc(f.tipo) + ', não lido'})`).join('; ')}</div>` : ''}
+        return `<h3>${p} · ${NOMES_P[p]} ${x.taxa !== null ? `<span class="hint">(${x.taxa}% atendidas)</span>` : ''} ${linkAvDe(d, p)}${d.padlet?.url ? ` <a class="link-av no-print" href="${esc(d.padlet.url)}" target="_blank" rel="noopener" title="Abrir o Padlet do estudante">↗ Padlet</a>` : ''}</h3>${midia}${fontes.length ? `<div class="hint">No Padlet: ${fontes.map((f) => `${esc(f.nome)} (${f.lido ? 'lido' : esc(f.tipo) + ', não lido'})`).join('; ')}</div>` : ''}
         ${x.itens.length ? `<table><thead><tr><th>Indicação do orientador</th><th>Situação</th><th>Evidência na versão do Padlet</th></tr></thead><tbody>${x.itens.map((i) => `<tr><td>${esc(i.indicacao)}${i.origem ? `<div class="hint">${esc(i.origem)}</div>` : ''}</td><td><span class="tag ${ROT_CORR[i.status][1]}">${ROT_CORR[i.status][0]}</span></td><td>${esc(i.evidencia || '—')}</td></tr>`).join('')}</tbody></table>` : '<div class="vazio">Nenhuma indicação de melhoria nesta P.</div>'}
         ${x.melhorias_extras.length ? `<div class="hint" style="margin-top:4px">Melhorias feitas sem terem sido pedidas: ${esc(x.melhorias_extras.join('; '))}</div>` : ''}`; }).join('')}</div>`;
   }
@@ -223,7 +225,7 @@
     app.innerHTML = '<div class="card">Montando o dossiê…</div>';
     const d = await api(`/api/turmas/${encodeURIComponent(chave)}/alunos/${encodeURIComponent(alunoChave)}`);
     const f = d.fatos, x = d.dossie, a = d.aluno;
-    const linkAv = (p, rotulo = '↗ avaliação') => { const l = d.linksAvaliacao?.[p]; return l ? `<a class="link-av no-print" href="${esc(l.url)}" target="_blank" rel="noopener" title="${l.direto ? `Abrir a avaliação da ${p} no Avaliador` : `Abrir o Avaliador da ${p} (procure o estudante na turma)`}">${rotulo}</a>` : ''; };
+    const linkAv = (p, rotulo) => linkAvDe(d, p, rotulo);
     const temasRadar = {}; for (const [k, v] of Object.entries(f.temas)) temasRadar[k] = { pct: v.pct, turma: v.turma };
     const pad = d.padlet?.verificacao;
     const gerar = `<div class="barra-ferr no-print"><button class="btn ouro" id="gerar">${x ? '↻ Gerar novamente' : '✨ Gerar dossiê com IA'}</button><button class="btn sec" onclick="window.print()">🖨 Imprimir / salvar em PDF</button>${x ? `<a class="btn" href="#/turma/${encodeURIComponent(chave)}/aluno/${encodeURIComponent(alunoChave)}/banca">🎤 Roteiro da arguição</a><a class="btn sec" href="#devolutiva" onclick="document.getElementById('devolutiva').scrollIntoView({behavior:'smooth'});return false">✉ Devolutiva ao estudante</a>` : ''}<a class="btn sec" href="#/turma/${encodeURIComponent(chave)}">← Voltar à turma</a></div><div id="statusGerar" class="status">${x ? `Gerado em ${new Date(x.geradoEm).toLocaleString('pt-BR')} · ${esc(x.modelo)}${x.desatualizado ? ' · <b>os dados mudaram desde então: gere novamente</b>' : ' · mesmos dados, mesmo dossiê'}` : (d.padlet?.versoesResumo ? 'As versões do Padlet já foram lidas: o dossiê será gerado na versão final, conferindo as correções.' : 'Os fatos e gráficos abaixo já estão calculados. Sem os Padlets lidos, o dossiê sai na versão preliminar.')}</div>`;
