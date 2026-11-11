@@ -146,4 +146,18 @@ function normalizar(id, a) {
   };
 }
 
-module.exports = { P, ORDEM_P, TEMAS, OWNER, normalizar, pontos, declaracaoIA };
+// Endereço de cada Avaliador e link para abrir uma avaliação direto (P4 abre só o app: ele não aceita link direto).
+const APP_P = {
+  P1: { url: process.env.APP_P1 || 'https://avaliador-p1-definicao-desafio.onrender.com', direto: true },
+  P2: { url: process.env.APP_P2 || 'https://avaliador-p2-video.onrender.com', direto: true },
+  P3: { url: process.env.APP_P3 || 'https://avaliador-p3.onrender.com', direto: true },
+  P4: { url: process.env.APP_P4 || 'https://avaliador-podcast.onrender.com', direto: false },
+  P5: { url: process.env.APP_P5 || 'https://avaliador-agente-ia.onrender.com', direto: true },
+  P6: { url: process.env.APP_P6 || 'https://avaliador-p6-relato-de-experiencia.onrender.com', direto: true }
+};
+function linkAvaliacao(p, turmaId, avaliacaoId) {
+  const a = APP_P[p]; if (!a) return null;
+  if (!a.direto || !turmaId || !avaliacaoId) return { url: a.url + '/', direto: false };
+  return { url: `${a.url}/?turma=${encodeURIComponent(turmaId)}&avaliacao=${encodeURIComponent(avaliacaoId)}`, direto: true };
+}
+module.exports = { APP_P, linkAvaliacao, P, ORDEM_P, TEMAS, OWNER, normalizar, pontos, declaracaoIA };

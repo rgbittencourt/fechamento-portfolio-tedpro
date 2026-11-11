@@ -7,7 +7,7 @@ const dados = require('./dados');
 const padlet = require('./padlet');
 const { fatosAluno, fatosTurma, contextoTurma } = require('./fatos');
 const { montarPromptDossie, montarPromptTurma, limparDossie, limparTurma, montarPromptCorrecoes, limparCorrecoes, montarPromptDevolutiva, limparDevolutiva, montarPromptParecer, limparParecer } = require('./prompts');
-const { P, ORDEM_P, TEMAS } = require('./fontes');
+const { P, ORDEM_P, TEMAS, linkAvaliacao } = require('./fontes');
 const { configIA, configDaRequisicao, chamarIA, statusIA } = require('./ia');
 
 const app = express();
@@ -207,6 +207,7 @@ function pacoteDossie(m, chave, d) {
   const { aluno, fatos } = dadosDoAluno(m, chave);
   return {
     aluno: { chave, nome: aluno.nome, matricula: aluno.matricula, entregues: aluno.entregues, faltam: aluno.faltam, completo: aluno.completo, orientadores: fatos.orientadores },
+    linksAvaliacao: Object.fromEntries(ORDEM_P.filter((id) => aluno.ps[id]).map((id) => [id, linkAvaliacao(id, m.estado.mapa[id], aluno.juncao?.[id]?.avaliacaoId)])),
     fatos, turma: { mediaPorP: m.contexto.mediaPorP, temas: m.contexto.temasTurma, mediaGeral: m.contexto.mediaGeral },
     entregas: ORDEM_P.filter((id) => aluno.ps[id]).map((id) => ({ p: id, titulo: P[id].titulo, total: aluno.ps[id].total, completa: aluno.ps[id].completa, desafio: aluno.ps[id].desafio })),
     padlet: m.estado.padlet?.[chave] ? { ...m.estado.padlet[chave], versoes: undefined, versoesResumo: resumoVersoes(m.estado.padlet[chave].versoes) } : null, temas: TEMAS,
