@@ -229,10 +229,22 @@ app.post('/api/turmas/:chave/alunos/:aluno/dossie', async (req, res) => {
     const atual = m.estado.dossies?.[aluno.chave];
     // Mesmos dados, mesmo dossiê: só gera de novo quando os dados mudaram ou o professor pede.
     if (atual && atual.hashDados === hd && !req.body?.forcar) return res.json(pacoteDossie(m, aluno.chave, atual));
+    // Relê o Padlet antes de gerar, se a última leitura tiver mais de 30 minutos (o estudante pode ter publicado algo novo).
+    const pad = m.estado.padlet?.[aluno.chave];
+    if (pad?.url && !padlet.apiConfigurada() && (!pad.em || Date.now() - new Date(pad.em).getTime() > 30 * 60 * 1000)) {
+      try {
+        const bruto = await padlet.lerPublico(pad.url);
+        const verificacao = padlet.verificar(bruto, aluno, fatos);
+        const versoesNovas = await padlet.lerVersoes(padlet.postsPorP(bruto));
+        const em = new Date().toISOString();
+        await db.alterarTurma(req.params.chave, (t) => { t.padlet[aluno.chave] = { url: pad.url, verificacao, versoes: versoesNovas, em }; });
+        m.estado.padlet = { ...m.estado.padlet, [aluno.chave]: { url: pad.url, verificacao, versoes: versoesNovas, em } };
+      } catch { /* segue com a leitura anterior */ }
+    }
     const correcoes = await verificarCorrecoes(req, m, aluno, Boolean(req.body?.forcar));
     const versoes = m.estado.padlet?.[aluno.chave]?.versoes || null;
     const bruto = await chamarIA(montarPromptDossie(aluno, fatos, m.estado.padlet?.[aluno.chave]?.verificacao || null, correcoes, versoes), 0, { config: req.ia });
-    const registro = { conteudo: limparDossie(bruto), etapa: correcoes ? 'final' : 'preliminar', em: new Date().toISOString(), modelo: `${req.ia.nome} · ${req.ia.modelo}`, hashDados: hd };
+    const registro = { conteudo: limparDossie(bruto), etapa: correcoes ? 'final' : 'preliminar', em: new Date().toISOString(), modelo: `${req.ia.nome} · ${req.ia.modelo}`, hashDados: hashDadosAluno(m, aluno.chave) };
     await db.alterarTurma(req.params.chave, (t) => { t.dossies[aluno.chave] = registro; });
     res.json(pacoteDossie(m, aluno.chave, registro));
   } catch (e) { erro(res, e, 502); }
