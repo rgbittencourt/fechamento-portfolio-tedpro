@@ -25,3 +25,17 @@ test('Padlet privado dá mensagem clara', async () => {
   const buscar = async () => ({ ok: true, status: 200, text: async () => '<html>login</html>' });
   await assert.rejects(padlet.lerPublico('https://padlet.com/x/y', { buscar }), /privado/);
 });
+
+test('a seção vale mais que palavras do texto: post da P4 com "roteiro" no texto continua na P4', () => {
+  const pad = { titulo: 'x', secoes: [{ id: '2', titulo: 'P2 - Seu desafio em vídeo' }, { id: '4', titulo: 'P4 - Material digital 1' }, { id: '5', titulo: 'P5 - Material digital 2' }],
+    posts: [
+      { secao: '2', titulo: '', texto: 'PDF do roteiro e o link do video! https://canva.link/a', anexo: 'https://x/P2___Roteiro.pdf' },
+      { secao: '4', titulo: '', texto: 'PDF do roteiro e o link do Podcast! https://open.spotify.com/episode/1', anexo: 'https://x/P4___TEMPLATE_PODCAST.pdf' },
+      { secao: '5', titulo: '', texto: 'PDF do roteiro e Link de acesso ao Gem: https://gemini.google.com/gem/1', anexo: '' }
+    ] };
+  const porP = padlet.postsPorP(pad);
+  assert.equal(porP.P2.posts.length, 1);
+  assert.equal(porP.P4.posts.length, 1);
+  assert.equal(porP.P5.posts.length, 1);
+  assert.ok(porP.P4.posts[0].links.some((l) => l.includes('spotify')));
+});

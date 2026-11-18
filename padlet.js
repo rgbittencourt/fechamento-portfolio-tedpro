@@ -24,6 +24,20 @@ function pDoTitulo(t) {
   return '';
 }
 
+// Só um número explícito de P ("P4", "Portfólio 4", "Atividade 4"), sem palavras-chave.
+function pExplicito(t) {
+  const s = String(t || '').toLowerCase();
+  const m = s.match(/\bp\s*0?([1-6])\b/) || s.match(/portf[oó]lio\s*0?([1-6])\b/) || s.match(/(?:atividade|entrega|etapa)\s*0?([1-6])\b/);
+  return m ? `P${m[1]}` : '';
+}
+// A qual P um post pertence. Ordem: número explícito no título > seção onde o post está > número no nome do
+// arquivo > palavras-chave do título > palavras-chave do nome do arquivo. A seção vale mais que as palavras
+// do texto: um post da P4 que diz "PDF do roteiro e o link do Podcast" continua sendo da P4.
+function pDoPost(post, secaoP) {
+  const arquivo = String(post.anexo || '').split('?')[0].split('/').pop();
+  return pExplicito(post.titulo) || secaoP[post.secao] || pExplicito(arquivo.replace(/_/g, ' ')) || pDoTitulo(post.titulo) || pDoTitulo(arquivo.replace(/_/g, ' '));
+}
+
 // Converte qualquer formato aceito para {titulo, descricao, secoes, posts}.
 function padronizar(bruto) {
   if (!bruto) return null;
@@ -92,7 +106,7 @@ async function lerPublico(url, { buscar = fetch } = {}) {
     for (const d of j.data || []) {
       const a = d.attributes || {}; if (vistos.has(a.id)) continue; vistos.add(a.id);
       if (a.published === false) continue;
-      posts.push({ secao: String(a.wall_section_id || ''), titulo: semHtml(a.subject || a.headline || ''), texto: semHtml(a.body || ''), anexo: a.attachment || a.attachment_link?.canonical_url || '', publicadoEm: a.created_at || '', atualizadoEm: a.content_updated_at || a.updated_at || '', wallId: a.wall_id });
+      posts.push({ secao: String(a.wall_section_id || ''), titulo: semHtml(a.subject || ''), texto: semHtml(a.body || ''), anexo: a.attachment || a.attachment_link?.canonical_url || '', publicadoEm: a.created_at || '', atualizadoEm: a.content_updated_at || a.updated_at || '', wallId: a.wall_id });
     }
     const prox = j.meta?.next;
     if (!prox || prox === inicio) break;
@@ -116,7 +130,7 @@ function verificar(bruto, aluno, fatos) {
   for (const id of ORDEM_P) porP[id] = { posts: 0, anexos: 0, links: [], titulos: [] };
   const semP = [];
   for (const post of pad.posts) {
-    const id = pDoTitulo(post.titulo) || secaoP[post.secao] || pDoTitulo(post.anexo.split('/').pop());
+    const id = pDoPost(post, secaoP);
     const vazio = !post.titulo && !post.texto && !post.anexo;
     const secaoTitulo = (pad.secoes.find((s) => s.id === post.secao) || {}).titulo || '';
     if (!id && /sobre|quem sou|apresenta|desafio/i.test(secaoTitulo + ' ' + post.titulo)) continue;
@@ -154,7 +168,7 @@ function postsPorP(bruto) {
   const secaoP = Object.fromEntries(pad.secoes.map((s) => [s.id, pDoTitulo(s.titulo)]));
   const out = {};
   for (const post of pad.posts) {
-    const id = pDoTitulo(post.titulo) || secaoP[post.secao] || pDoTitulo(String(post.anexo || '').split('/').pop());
+    const id = pDoPost(post, secaoP);
     if (!id) continue;
     out[id] = out[id] || { posts: [] };
     out[id].posts.push({ titulo: post.titulo || '', texto: post.texto || '', anexo: post.anexo || '', links: urls(post.texto), publicadoEm: post.publicadoEm || '', atualizadoEm: post.atualizadoEm || '' });
@@ -227,4 +241,4 @@ function sinaisMidia(av, versao, campoLink) {
   return { linkAvaliado, dataAvaliacao, duracaoAvaliada: av.textos.videoDuracao?.texto || av.textos.duracao?.texto || '', noPadlet: [...midias.map((l) => ({ link: l.url, publicadoEm: l.publicadoEm })), ...arquivos.map((f) => ({ arquivo: f.nome, bytes: f.bytes || null, publicadoEm: f.modificadoEm || f.publicadoEm }))], mesmoLink: Boolean(mesmoLink), publicadoDepois: Boolean(publicadoDepois), conclusao };
 }
 
-module.exports = { lerPublico, sinaisMidia, verificar, padronizar, lerPelaApi, pDoTitulo, postsPorP, lerVersoes, apiConfigurada: () => Boolean(API_KEY) };
+module.exports = { pDoPost, lerPublico, sinaisMidia, verificar, padronizar, lerPelaApi, pDoTitulo, postsPorP, lerVersoes, apiConfigurada: () => Boolean(API_KEY) };
